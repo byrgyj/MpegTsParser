@@ -22,7 +22,7 @@
 #define TEST_DEMUX_H
 
 #include <fcntl.h>
-
+#include <list>
 #include "tsDemuxer.h"
 
 
@@ -32,17 +32,25 @@
 class Demux : public TSDemux::TSDemuxer
 {
 public:
-  Demux(FILE* file, uint16_t channel);
+  Demux(FILE* file, uint16_t channel, int fileIndex);
   ~Demux();
 
   int Do(void);
 
+  void printPts();
   const unsigned char* ReadAV(uint64_t pos, size_t n);
 
 private:
   FILE* m_ifile;
+  int mFileIndex;
   uint16_t m_channel;
   std::map<uint16_t, FILE*> m_outfiles;
+
+
+  int32_t   mVideoPktCount;
+  int32_t   mAudioPktCount;
+  std::list<TSDemux::STREAM_PKT*> mVecPackets;
+
 
   bool get_stream_data(TSDemux::STREAM_PKT* pkt);
   void reset_posmap();
@@ -59,7 +67,8 @@ private:
 
   // Playback context
   TSDemux::AVContext* m_AVContext;
-  uint16_t m_mainStreamPID;     ///< PID of main stream
+  uint16_t m_videoPID;     ///< video PID
+  uint16_t m_audioPID;     ///< audio PID
   uint64_t m_DTS;               ///< absolute decode time of main stream
   uint64_t m_PTS;               ///< absolute presentation time of main stream
   int64_t m_pinTime;            ///< pinned relative position (90Khz)

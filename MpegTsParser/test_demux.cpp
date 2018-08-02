@@ -27,20 +27,22 @@
 
 #include "test_demux.h"
 #include "debug.h"
+#include <io.h>
 
 #define LOGTAG  "[DEMUX] "
 
-int g_loglevel = DEMUX_DBG_INFO;
+int g_loglevel = DEMUX_DBG_DEBUG;
 int g_parseonly = 0;
+bool g_printVideoPts = false;
+bool g_printAudioPts = false;
 
-Demux::Demux(FILE* file, uint16_t channel)
-: m_channel(channel)
+Demux::Demux(FILE* file, uint16_t channel, int fileIndex)
+: m_channel(channel), mFileIndex(fileIndex)
 {
   m_ifile = file;
   m_av_buf_size = AV_BUFFER_SIZE;
   m_av_buf = (unsigned char*)malloc(sizeof(*m_av_buf) * (m_av_buf_size + 1));
-  if (m_av_buf)
-  {
+  if (m_av_buf){
     m_av_pos = 0;
     m_av_rbs = m_av_buf;
     m_av_rbe = m_av_buf;
@@ -48,17 +50,22 @@ Demux::Demux(FILE* file, uint16_t channel)
 
     TSDemux::DBGLevel(g_loglevel);
 
-    m_mainStreamPID = 0xffff;
+    m_videoPID = 0xffff;
+    m_audioPID = 0xffff;
     m_DTS = PTS_UNSET;
     m_PTS = PTS_UNSET;
     m_pinTime = m_curTime = m_endTime = 0;
     m_AVContext = new TSDemux::AVContext(this, 0, m_channel);
+
+    mVideoPktCount = 0;
+    mAudioPktCount = 0;
   }
   else
   {
     printf(LOGTAG "alloc AV buffer failed\n");
   }
 }
+
 
 Demux::~Demux()
 {
@@ -130,25 +137,40 @@ const unsigned char* Demux::ReadAV(uint64_t pos, size_t n)
 int Demux::Do()
 {
   int ret = 0;
+  int indexCount = 0;
 
   while (true)
   {
     {
       ret = m_AVContext->TSResync();
     }
-    if (ret != TSDemux::AVCONTEXT_CONTINUE)
+    if (ret != TSDemux::AVCONTEXT_CONTINUE){
       break;
+    }
 
     ret = m_AVContext->ProcessTSPacket();
 
+    indexCount++;
+
     if (m_AVContext->HasPIDStreamData())
     {
-      TSDemux::STREAM_PKT pkt;
-      while (get_stream_data(&pkt))
-      {
-        if (pkt.streamChange)
-          show_stream_info(pkt.pid);
-        write_stream_data(&pkt);
+      TSDemux::STREAM_PKT *pkt = new TSDemux::STREAM_PKT;
+      while (get_stream_data(pkt)){
+        if (pkt->streamChange)
+          show_stream_info(pkt->pid);
+        write_stream_data(pkt);
+
+        TSDemux::Packet *packet = m_AVContext->getPacket();
+
+        if (pkt->pid == m_audioPID) {
+            mAudioPktCount++;
+        } else if (pkt->pid == m_videoPID) {
+            mVideoPktCount++;
+        }
+
+        mVecPackets.push_back(pkt);
+
+        pkt = new TSDemux::STREAM_PKT;
       }
     }
     if (m_AVContext->HasPIDPayload())
@@ -183,6 +205,38 @@ int Demux::Do()
   return ret;
 }
 
+void Demux::printPts() {
+    std::list<TSDemux::STREAM_PKT*>::iterator it = mVecPackets.begin();
+
+    int videoIndex = 0;
+    int audioIndex = 0;
+
+    for (; it != mVecPackets.end(); ) {
+        TSDemux::STREAM_PKT *pkt = *it;
+        it = mVecPackets.erase(it);
+        if (pkt != NULL) {
+            if (pkt->pid == m_videoPID){
+                videoIndex++;
+                if (g_printVideoPts) {
+                    if (videoIndex < 5 || videoIndex > mVideoPktCount - 4){
+                        TSDemux::DBG(DEMUX_DBG_INFO, "[video-%d] pts=%lld, dts=%lld \n", mFileIndex, pkt->pts, pkt->dts);
+                    }
+                }
+            } else if (pkt->pid == m_audioPID){
+                audioIndex++;
+                if (g_printAudioPts) {
+                    if (audioIndex < 5 || audioIndex > mAudioPktCount - 4){
+                       TSDemux::DBG(DEMUX_DBG_INFO, "[audio-%d] pts=%lld, dts=%lld \n", mFileIndex, pkt->pts, pkt->dts);
+                    }
+                }
+            }
+
+            delete pkt;
+        }
+
+    }
+}
+
 bool Demux::get_stream_data(TSDemux::STREAM_PKT* pkt)
 {
   TSDemux::ElementaryStream* es = m_AVContext->GetPIDStream();
@@ -196,7 +250,7 @@ bool Demux::get_stream_data(TSDemux::STREAM_PKT* pkt)
   {
     pkt->duration = 0;
   }
-  else if (pkt->pid == m_mainStreamPID)
+  else if (pkt->pid == m_videoPID)
   {
     // Fill duration map for main stream
     m_curTime += pkt->duration;
@@ -210,12 +264,19 @@ bool Demux::get_stream_data(TSDemux::STREAM_PKT* pkt)
         item.av_pos = m_AVContext->GetPosition();
         m_posmap.insert(std::make_pair(m_curTime, item));
         m_endTime = m_curTime;
-        printf(LOGTAG "time %09.3f : PTS=%" PRIu64 " Position=%" PRIu64 "\n", (double)(m_curTime) / PTS_TIME_BASE, item.av_pts, item.av_pos);
+        //printf(LOGTAG "time %09.3f : PTS=%" PRIu64 " Position=%" PRIu64 "\n", (double)(m_curTime) / PTS_TIME_BASE, item.av_pts, item.av_pos);
       }
     }
-    // Sync main DTS & PTS
     m_DTS = pkt->dts;
     m_PTS = pkt->pts;
+
+    if (g_printVideoPts){
+        //TSDemux::DBG(DEMUX_DBG_INFO, "[video] pts=%lld, dts=%lld \n", pkt->pts, pkt->dts);
+    }
+  } else if (pkt->pid == m_audioPID) {
+     if (g_printAudioPts) {
+         //TSDemux::DBG(DEMUX_DBG_INFO, "[audio] pts=%lld, dts=%lld \n", pkt->pts, pkt->dts);
+     }
   }
   return true;
 }
@@ -236,7 +297,12 @@ void Demux::register_pmt()
   const std::vector<TSDemux::ElementaryStream*> es_streams = m_AVContext->GetStreams();
   if (!es_streams.empty())
   {
-    m_mainStreamPID = es_streams[0]->pid;
+    m_videoPID = es_streams[0]->pid;
+
+    if (es_streams.size() > 1) {
+        m_audioPID = es_streams[1]->pid;
+    }
+
     for (std::vector<TSDemux::ElementaryStream*>::const_iterator it = es_streams.begin(); it != es_streams.end(); ++it)
     {
       uint16_t channel = m_AVContext->GetChannel((*it)->pid);
@@ -325,11 +391,32 @@ static void usage(const char* cmd)
         );
 }
 
+FILE *g_logFile = NULL;
+
+void  LogOut(int level, char *log) {
+    if (log != NULL && level == DEMUX_DBG_INFO) {
+       std::string str(log);
+       fwrite(log, 1, str.size(), g_logFile);
+    }
+}
+
+void listFiles(const char *dir, std::map<int, std::string> &mapFiles);
+
 int main(int argc, char* argv[])
 {
   const char* filename = NULL;
   uint16_t channel = 0;
   int i = 0;
+
+  std::map<int, std::string> localFiles;
+
+  std::string videoLocaltion = "D:/MyProg/MpegTsParser/MpegTsParser/video2/";
+  std::string destLocaltion = videoLocaltion + "*.*";
+  listFiles(destLocaltion.c_str(), localFiles);
+
+  g_printAudioPts = true;
+  g_printVideoPts = false;
+
   while (++i < argc)
   {
     if (strcmp(argv[i], "--debug") == 0)
@@ -352,40 +439,77 @@ int main(int argc, char* argv[])
       usage(argv[0]);
       return 0;
     }
-    else
-      filename = argv[i];
-  }
-
-  if (filename)
-  {
-    FILE* file = NULL;
-    if (strcmp(filename, "-") == 0)
-    {
-      file = stdin;
-      filename = "[stdin]";
-    }
-    else
-      file = fopen(filename, "rb");
-
-    if (file)
-    {
-      fprintf(stderr, "## Processing TS stream from %s ##\n", filename);
-      Demux* demux = new Demux(file, channel);
-      demux->Do();
-      delete demux;
-      fclose(file);
-    }
-    else
-    {
-      fprintf(stderr,"Cannot open file '%s' for read\n", filename);
-      return -1;
+    else {
+      //filename = argv[i];
+      //vecLocalFiles.push_back(argv[i]);
     }
   }
-  else
-  {
+
+  g_logFile = fopen("debug.log", "w");
+  if (g_logFile != NULL) {
+      TSDemux::SetDBGMsgCallback(LogOut);
+  }
+
+  if (!localFiles.empty()){
+      int index = 0;
+    for (std::map<int, std::string>::iterator it = localFiles.begin(); it != localFiles.end(); it++) {
+        std::string curFile = videoLocaltion + it->second;
+
+        FILE* file = NULL;
+        if (strcmp(curFile.c_str(), "-") == 0){
+            file = stdin;
+            filename = "[stdin]";
+        } else {
+            file = fopen(curFile.c_str(), "rb");
+        }
+
+        if (file){
+            fprintf(stderr, "## Processing TS stream from %s ##\n", curFile.c_str());
+            Demux* demux = new Demux(file, channel, index++);
+            demux->Do();
+            demux->printPts();
+            delete demux;
+            fclose(file);
+        }
+        else{
+            fprintf(stderr,"Cannot open file '%s' for read\n", curFile.c_str());
+        }
+    }
+  }
+  else {
     fprintf(stderr, "No file specified\n\n");
     usage(argv[0]);
-    return -1;
+  }
+
+  if (g_logFile != NULL) {
+      fclose(g_logFile);
   }
   return 0;
+}
+
+
+void listFiles(const char *dir, std::map<int, std::string> &mapFiles)
+{
+    intptr_t handle;
+    _finddata_t findData;
+
+    handle = _findfirst(dir, &findData);
+    if (handle == -1){
+        return;
+    }
+
+    do{
+        if (findData.attrib & _A_SUBDIR
+            || strcmp(findData.name, ".") == 0
+            || strcmp(findData.name, "..") == 0
+            ){ 
+             continue;
+        }else{
+            int index = atoi(findData.name);
+            mapFiles.insert(std::make_pair(index, findData.name));
+        }
+    } while (_findnext(handle, &findData) == 0);
+
+   
+    _findclose(handle); 
 }

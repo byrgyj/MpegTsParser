@@ -76,6 +76,8 @@ namespace TSDemux
     uint16_t GetChannel(uint16_t pid) const;
     void ResetPackets();
 
+    Packet *getPacket() { return packet; }
+
     // TS parser
     int TSResync();
     uint64_t GoNext();
