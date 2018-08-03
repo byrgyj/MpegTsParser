@@ -36,8 +36,6 @@ public:
   ~Demux();
 
   int Do(void);
-
-  void printPts();
   const unsigned char* ReadAV(uint64_t pos, size_t n);
 
 private:
@@ -45,12 +43,6 @@ private:
   int mFileIndex;
   uint16_t m_channel;
   std::map<uint16_t, FILE*> m_outfiles;
-
-
-  int32_t   mVideoPktCount;
-  int32_t   mAudioPktCount;
-  std::list<TSDemux::STREAM_PKT*> mVecPackets;
-
 
   bool get_stream_data(TSDemux::STREAM_PKT* pkt);
   void reset_posmap();

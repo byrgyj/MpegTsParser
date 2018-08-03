@@ -36,7 +36,7 @@
 
 using namespace TSDemux;
 
-AVContext::AVContext(TSDemuxer* const demux, uint64_t pos, uint16_t channel)
+AVContext::AVContext(TSDemuxer* const demux, uint64_t pos, uint16_t channel, int fileIndex)
   : av_pos(pos)
   , av_data_len(FLUTS_NORMAL_TS_PACKETSIZE)
   , av_pkt_size(0)
@@ -50,6 +50,11 @@ AVContext::AVContext(TSDemuxer* const demux, uint64_t pos, uint16_t channel)
   , payload(NULL)
   , payload_len(0)
   , packet(NULL)
+  , mVideoPktCount(0)
+  , mAudioPktCount(0)
+  , mVideoPid(0)
+  , mAudioPid(0)
+  , mFileIndex(fileIndex)
 {
   m_demux = demux;
   memset(av_buf, 0, sizeof(av_buf));
@@ -539,6 +544,38 @@ int AVContext::ProcessTSPayload()
   return ret;
 }
 
+void AVContext::printPts() {
+    std::list<TSDemux::STREAM_PKT*>::iterator it = mMediaPkts.begin();
+
+    int videoIndex = 0;
+    int audioIndex = 0;
+
+    for (; it != mMediaPkts.end(); ) {
+        TSDemux::STREAM_PKT *pkt = *it;
+        it = mMediaPkts.erase(it);
+        if (pkt != NULL) {
+            if (pkt->pid == mVideoPid){
+                videoIndex++;
+                if (false) { // TODO
+                    if (videoIndex < 5 || videoIndex > mVideoPktCount - 4){
+                        TSDemux::DBG(DEMUX_DBG_INFO, "[video-%d] pts=%lld, dts=%lld \n", mFileIndex, pkt->pts, pkt->dts);
+                    }
+                }
+            } else if (pkt->pid == mAudioPid){
+                audioIndex++;
+                if (true) { // TODO
+                    if (audioIndex < 5 || audioIndex > mAudioPktCount - 4){
+                        TSDemux::DBG(DEMUX_DBG_INFO, "[audio-%d] pts=%lld, dts=%lld \n", mFileIndex, pkt->pts, pkt->dts);
+                    }
+                }
+            }
+
+            delete pkt;
+        }
+
+    }
+}
+
 void AVContext::clear_pmt()
 {
   DBG(DEMUX_DBG_DEBUG, "%s\n", __FUNCTION__);
@@ -820,16 +857,20 @@ int AVContext::parse_ts_psi()
           case STREAM_TYPE_AUDIO_AAC:
           case STREAM_TYPE_AUDIO_AAC_ADTS:
           case STREAM_TYPE_AUDIO_AAC_LATM:
+            mAudioPid = pes_pid;
             es = new ES_AAC(pes_pid);
             break;
           case STREAM_TYPE_VIDEO_H264:
+              mVideoPid = pes_pid;
             es = new ES_h264(pes_pid);
             break;
           case STREAM_TYPE_VIDEO_HEVC:
+               mVideoPid = pes_pid;
             es = new ES_hevc(pes_pid);
             break;
           case STREAM_TYPE_AUDIO_AC3:
           case STREAM_TYPE_AUDIO_EAC3:
+              mAudioPid = pes_pid;
             es = new ES_AC3(pes_pid);
             break;
           case STREAM_TYPE_DVB_SUBTITLE:
@@ -1025,12 +1066,14 @@ int AVContext::parse_ts_pes()
     uint8_t flags = av_rb8(this->packet->packet_table.buf + 7);
 
     //this->packet->stream->frame_num++;
-
+     TSDemux::STREAM_PKT *curPkt = new TSDemux::STREAM_PKT;
+     curPkt->pid = this->packet->stream->pid;
     switch (flags & 0xc0)
     {
       case 0x80: // PTS only
       {
         has_pts = true;
+
         if (this->packet->packet_table.len >= 14)
         {
           uint64_t pts = decode_pts(this->packet->packet_table.buf + 9);
@@ -1073,7 +1116,20 @@ int AVContext::parse_ts_pes()
       break;
     }
     this->packet->packet_table.Reset();
+
+    curPkt->dts = packet->stream->c_dts;
+    curPkt->pts = packet->stream->c_pts;
+
+    if (curPkt->pid == 256) {
+        mVideoPktCount++;
+    } else if (curPkt->pid == 257) {
+        mAudioPktCount++;
+    }
+
+    mMediaPkts.push_back(curPkt);
   }
+
+    
 
   if (this->packet->streaming)
   {

@@ -55,10 +55,7 @@ Demux::Demux(FILE* file, uint16_t channel, int fileIndex)
     m_DTS = PTS_UNSET;
     m_PTS = PTS_UNSET;
     m_pinTime = m_curTime = m_endTime = 0;
-    m_AVContext = new TSDemux::AVContext(this, 0, m_channel);
-
-    mVideoPktCount = 0;
-    mAudioPktCount = 0;
+    m_AVContext = new TSDemux::AVContext(this, 0, m_channel, fileIndex);
   }
   else
   {
@@ -69,6 +66,8 @@ Demux::Demux(FILE* file, uint16_t channel, int fileIndex)
 
 Demux::~Demux()
 {
+    m_AVContext->printPts();
+
   for (std::map<uint16_t, FILE*>::iterator it = m_outfiles.begin(); it != m_outfiles.end(); ++it)
     if (it->second)
       fclose(it->second);
@@ -154,24 +153,15 @@ int Demux::Do()
 
     if (m_AVContext->HasPIDStreamData())
     {
+      
       TSDemux::STREAM_PKT *pkt = new TSDemux::STREAM_PKT;
       while (get_stream_data(pkt)){
         if (pkt->streamChange)
           show_stream_info(pkt->pid);
         write_stream_data(pkt);
 
-        TSDemux::Packet *packet = m_AVContext->getPacket();
-
-        if (pkt->pid == m_audioPID) {
-            mAudioPktCount++;
-        } else if (pkt->pid == m_videoPID) {
-            mVideoPktCount++;
-        }
-
-        mVecPackets.push_back(pkt);
-
-        pkt = new TSDemux::STREAM_PKT;
       }
+      delete pkt;
     }
     if (m_AVContext->HasPIDPayload())
     {
@@ -203,38 +193,6 @@ int Demux::Do()
          TSDemux::AVCONTEXT_TS_ERROR);
   printf(LOGTAG "%s: stopped with status %d\n", __FUNCTION__, ret);
   return ret;
-}
-
-void Demux::printPts() {
-    std::list<TSDemux::STREAM_PKT*>::iterator it = mVecPackets.begin();
-
-    int videoIndex = 0;
-    int audioIndex = 0;
-
-    for (; it != mVecPackets.end(); ) {
-        TSDemux::STREAM_PKT *pkt = *it;
-        it = mVecPackets.erase(it);
-        if (pkt != NULL) {
-            if (pkt->pid == m_videoPID){
-                videoIndex++;
-                if (g_printVideoPts) {
-                    if (videoIndex < 5 || videoIndex > mVideoPktCount - 4){
-                        TSDemux::DBG(DEMUX_DBG_INFO, "[video-%d] pts=%lld, dts=%lld \n", mFileIndex, pkt->pts, pkt->dts);
-                    }
-                }
-            } else if (pkt->pid == m_audioPID){
-                audioIndex++;
-                if (g_printAudioPts) {
-                    if (audioIndex < 5 || audioIndex > mAudioPktCount - 4){
-                       TSDemux::DBG(DEMUX_DBG_INFO, "[audio-%d] pts=%lld, dts=%lld \n", mFileIndex, pkt->pts, pkt->dts);
-                    }
-                }
-            }
-
-            delete pkt;
-        }
-
-    }
 }
 
 bool Demux::get_stream_data(TSDemux::STREAM_PKT* pkt)
@@ -410,7 +368,7 @@ int main(int argc, char* argv[])
 
   std::map<int, std::string> localFiles;
 
-  std::string videoLocaltion = "D:/MyProg/MpegTsParser/MpegTsParser/video2/";
+  std::string videoLocaltion = "D:/MyProg/MpegTsParser/MpegTsParser/video/";
   std::string destLocaltion = videoLocaltion + "*.*";
   listFiles(destLocaltion.c_str(), localFiles);
 
@@ -467,7 +425,6 @@ int main(int argc, char* argv[])
             fprintf(stderr, "## Processing TS stream from %s ##\n", curFile.c_str());
             Demux* demux = new Demux(file, channel, index++);
             demux->Do();
-            demux->printPts();
             delete demux;
             fclose(file);
         }

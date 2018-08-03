@@ -28,6 +28,7 @@
 
 #include <map>
 #include <vector>
+#include <list>
 
 #define FLUTS_NORMAL_TS_PACKETSIZE  188
 #define FLUTS_M2TS_TS_PACKETSIZE    192
@@ -37,6 +38,7 @@
 #define AV_CONTEXT_PACKETSIZE       208
 #define TS_CHECK_MIN_SCORE          2
 #define TS_CHECK_MAX_SCORE          10
+
 
 namespace TSDemux
 {
@@ -59,7 +61,7 @@ namespace TSDemux
   class AVContext
   {
   public:
-    AVContext(TSDemuxer* const demux, uint64_t pos, uint16_t channel);
+    AVContext(TSDemuxer* const demux, uint64_t pos, uint16_t channel, int fileIndex);
     void Reset(void);
 
     uint16_t GetPID() const;
@@ -87,6 +89,9 @@ namespace TSDemux
     int ProcessTSPacket();
     int ProcessTSPayload();
 
+
+    void printPts();
+
   private:
     AVContext(const AVContext&);
     AVContext& operator=(const AVContext&);
@@ -109,6 +114,13 @@ namespace TSDemux
     // AV stream owner
     TSDemuxer* m_demux;
 
+    int mVideoPktCount;
+    int mAudioPktCount;
+    int mVideoPid;
+    int mAudioPid;
+
+    int mFileIndex;
+
     // Raw packet buffer
     uint64_t av_pos;
     size_t av_data_len;
@@ -119,6 +131,8 @@ namespace TSDemux
     bool is_configured;
     uint16_t channel;
     std::map<uint16_t, Packet> packets;
+
+    std::list<TSDemux::STREAM_PKT*> mMediaPkts;
 
     // Packet context
     uint16_t pid;
