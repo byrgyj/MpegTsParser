@@ -1,6 +1,7 @@
 #pragma once
 #include <list>
 #include <map>
+#include <set>
 #include "elementaryStream.h"
 class ParseredDataContainer
 {
@@ -13,7 +14,8 @@ public:
 
 private:
     void printCurrentList(std::list<TSDemux::STREAM_PKT*> *lst, int index);
-    
+    void printVideoInfo(std::list<TSDemux::STREAM_PKT*> *lst, int index);
+    void printAudioInfo(std::list<TSDemux::STREAM_PKT*> *lst, int index);
 private:
     //std::list<std::list<TSDemux::STREAM_PKT*>*> mParserdData;
     std::map<int, std::list<TSDemux::STREAM_PKT*>*> mParserdData;

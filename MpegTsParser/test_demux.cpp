@@ -67,8 +67,6 @@ Demux::Demux(FILE* file, uint16_t channel, int fileIndex)
 
 Demux::~Demux()
 {
-    m_AVContext->printPts();
-
   for (std::map<uint16_t, FILE*>::iterator it = m_outfiles.begin(); it != m_outfiles.end(); ++it)
     if (it->second)
       fclose(it->second);
