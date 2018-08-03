@@ -78,7 +78,7 @@ namespace TSDemux
     uint16_t GetChannel(uint16_t pid) const;
     void ResetPackets();
 
-    Packet *getPacket() { return packet; }
+    std::list<TSDemux::STREAM_PKT*> *getMediaPkts() { return mMediaPkts; }
 
     // TS parser
     int TSResync();
@@ -88,9 +88,6 @@ namespace TSDemux
     uint64_t GetPosition() const;
     int ProcessTSPacket();
     int ProcessTSPayload();
-
-
-    void printPts();
 
   private:
     AVContext(const AVContext&);
@@ -132,7 +129,7 @@ namespace TSDemux
     uint16_t channel;
     std::map<uint16_t, Packet> packets;
 
-    std::list<TSDemux::STREAM_PKT*> mMediaPkts;
+    std::list<TSDemux::STREAM_PKT*> *mMediaPkts;
 
     // Packet context
     uint16_t pid;

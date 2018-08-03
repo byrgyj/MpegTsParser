@@ -28,6 +28,7 @@
 #include "test_demux.h"
 #include "debug.h"
 #include <io.h>
+#include "ParserdDataContainer.h"
 
 #define LOGTAG  "[DEMUX] "
 
@@ -156,9 +157,9 @@ int Demux::Do()
       
       TSDemux::STREAM_PKT *pkt = new TSDemux::STREAM_PKT;
       while (get_stream_data(pkt)){
-        if (pkt->streamChange)
-          show_stream_info(pkt->pid);
-        write_stream_data(pkt);
+        //if (pkt->streamChange)
+          //show_stream_info(pkt->pid);
+        //write_stream_data(pkt);
 
       }
       delete pkt;
@@ -172,8 +173,8 @@ int Demux::Do()
         std::vector<TSDemux::ElementaryStream*> streams = m_AVContext->GetStreams();
         for (std::vector<TSDemux::ElementaryStream*>::const_iterator it = streams.begin(); it != streams.end(); ++it)
         {
-          if ((*it)->has_stream_info)
-            show_stream_info((*it)->pid);
+          //if ((*it)->has_stream_info)
+            //show_stream_info((*it)->pid);
         }
       }
     }
@@ -366,9 +367,11 @@ int main(int argc, char* argv[])
   uint16_t channel = 0;
   int i = 0;
 
+  ParseredDataContainer dataContainer;
   std::map<int, std::string> localFiles;
 
-  std::string videoLocaltion = "D:/MyProg/MpegTsParser/MpegTsParser/video/";
+  //std::string videoLocaltion = "D:/MyProg/MpegTsParser/MpegTsParser/video/";
+  std::string videoLocaltion = "D:/data/8.3/ts/";
   std::string destLocaltion = videoLocaltion + "*.*";
   listFiles(destLocaltion.c_str(), localFiles);
 
@@ -423,8 +426,10 @@ int main(int argc, char* argv[])
 
         if (file){
             fprintf(stderr, "## Processing TS stream from %s ##\n", curFile.c_str());
-            Demux* demux = new Demux(file, channel, index++);
+            Demux* demux = new Demux(file, channel, it->first);
             demux->Do();
+            std::list<TSDemux::STREAM_PKT*> *lst = demux->getParseredData();
+            dataContainer.addData(lst, it->first);
             delete demux;
             fclose(file);
         }
@@ -432,6 +437,8 @@ int main(int argc, char* argv[])
             fprintf(stderr,"Cannot open file '%s' for read\n", curFile.c_str());
         }
     }
+
+    dataContainer.printInfo();
   }
   else {
     fprintf(stderr, "No file specified\n\n");

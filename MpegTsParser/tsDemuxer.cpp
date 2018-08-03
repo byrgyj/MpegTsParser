@@ -58,6 +58,8 @@ AVContext::AVContext(TSDemuxer* const demux, uint64_t pos, uint16_t channel, int
 {
   m_demux = demux;
   memset(av_buf, 0, sizeof(av_buf));
+
+  mMediaPkts = new std::list<TSDemux::STREAM_PKT*>;
 };
 
 void AVContext::Reset(void)
@@ -542,38 +544,6 @@ int AVContext::ProcessTSPayload()
   }
 
   return ret;
-}
-
-void AVContext::printPts() {
-    std::list<TSDemux::STREAM_PKT*>::iterator it = mMediaPkts.begin();
-
-    int videoIndex = 0;
-    int audioIndex = 0;
-
-    for (; it != mMediaPkts.end(); ) {
-        TSDemux::STREAM_PKT *pkt = *it;
-        it = mMediaPkts.erase(it);
-        if (pkt != NULL) {
-            if (pkt->pid == mVideoPid){
-                videoIndex++;
-                if (false) { // TODO
-                    if (videoIndex < 5 || videoIndex > mVideoPktCount - 4){
-                        TSDemux::DBG(DEMUX_DBG_INFO, "[video-%d] pts=%lld, dts=%lld \n", mFileIndex, pkt->pts, pkt->dts);
-                    }
-                }
-            } else if (pkt->pid == mAudioPid){
-                audioIndex++;
-                if (true) { // TODO
-                    if (audioIndex < 5 || audioIndex > mAudioPktCount - 4){
-                        TSDemux::DBG(DEMUX_DBG_INFO, "[audio-%d] pts=%lld, dts=%lld \n", mFileIndex, pkt->pts, pkt->dts);
-                    }
-                }
-            }
-
-            delete pkt;
-        }
-
-    }
 }
 
 void AVContext::clear_pmt()
@@ -1126,7 +1096,7 @@ int AVContext::parse_ts_pes()
         mAudioPktCount++;
     }
 
-    mMediaPkts.push_back(curPkt);
+    mMediaPkts->push_back(curPkt);
   }
 
     
