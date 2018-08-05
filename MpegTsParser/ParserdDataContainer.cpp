@@ -3,7 +3,7 @@
 #include "debug.h"
 
 
-ParseredDataContainer::ParseredDataContainer() : mLastVideoDts(0), mLastAudioDts(0){
+ParseredDataContainer::ParseredDataContainer(int printMediaType) : mLastVideoDts(0), mLastAudioDts(0), mPrintType(printMediaType), mVideoPid(256), mAudioPid(257){
 }
 
 
@@ -32,10 +32,12 @@ void ParseredDataContainer::printCurrentList(std::list<TSDemux::STREAM_PKT*> *ls
         return;
     }
 
-    if (true) {
+    if (mPrintType == PRINT_VIDEO) {
         printVideoInfo(lst, index);
-    } else {
+    } else if (mPrintType == PRINT_AUDIO) {
         printAudioInfo(lst, index);
+    } else {
+
     }
 }
 
@@ -48,7 +50,7 @@ void ParseredDataContainer::printVideoInfo(std::list<TSDemux::STREAM_PKT*> *lst,
     std::map<int64_t, int64_t> mapContainer;
     while(it != lst->end()) {
         TSDemux::STREAM_PKT *pkt = *it;
-        if (pkt->pid == 256){
+        if (pkt->pid == mVideoPid){
             mapContainer.insert(std::make_pair(pkt->pts, pkt->dts));
         }   
         it++;
@@ -79,7 +81,7 @@ void ParseredDataContainer::printAudioInfo(std::list<TSDemux::STREAM_PKT*> *lst,
         TSDemux::STREAM_PKT *pkt = *it;
         it = lst->erase(it);
         if (pkt != NULL) {
-            if (pkt->pid == 257){
+            if (pkt->pid == mAudioPid){
                 if (firstAudio) {
                     firstAudio = false;
                     if (mLastAudioDts != 0 &&  pkt->dts - mLastAudioDts != 2880){
@@ -92,4 +94,8 @@ void ParseredDataContainer::printAudioInfo(std::list<TSDemux::STREAM_PKT*> *lst,
             delete pkt;
         }
     }
+}
+
+void ParseredDataContainer::printAllMediaInfo(std::list<TSDemux::STREAM_PKT*> *lst, int index){
+
 }

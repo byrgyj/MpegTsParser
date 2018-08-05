@@ -105,6 +105,9 @@ namespace TSDemux
     static STREAM_INFO parse_pes_descriptor(const unsigned char* p, size_t len, STREAM_TYPE* st);
     int parse_ts_pes();
 
+    int parsePat(const unsigned char *data, const unsigned char *dataEnd);
+    int parsePmt(const unsigned char *data, const unsigned char *dataEnd);
+
     // Critical section
     mutable PLATFORM::CMutex mutex;
 
@@ -127,7 +130,7 @@ namespace TSDemux
     // TS Streams context
     bool is_configured;
     uint16_t channel;
-    std::map<uint16_t, Packet> packets;
+    std::map<uint16_t, Packet> mTsTypePkts;
 
     std::list<TSDemux::STREAM_PKT*> *mMediaPkts;
 
@@ -139,7 +142,7 @@ namespace TSDemux
     bool discontinuity;
     const unsigned char* payload;
     size_t payload_len;
-    Packet* packet;
+    Packet* mCurrentPkt;
   };
 }
 

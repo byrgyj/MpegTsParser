@@ -153,14 +153,13 @@ int Demux::Do()
     if (m_AVContext->HasPIDStreamData())
     {
       
-      TSDemux::STREAM_PKT *pkt = new TSDemux::STREAM_PKT;
-      while (get_stream_data(pkt)){
+      TSDemux::STREAM_PKT pkt;
+      while (get_stream_data(&pkt)){
         //if (pkt->streamChange)
           //show_stream_info(pkt->pid);
-        //write_stream_data(pkt);
-
+        //write_stream_data(pkt)
       }
-      delete pkt;
+     
     }
     if (m_AVContext->HasPIDPayload())
     {
@@ -365,11 +364,11 @@ int main(int argc, char* argv[])
   uint16_t channel = 0;
   int i = 0;
 
-  ParseredDataContainer dataContainer;
+  ParseredDataContainer dataContainer(PRINT_AUDIO);
   std::map<int, std::string> localFiles;
 
   //std::string videoLocaltion = "D:/MyProg/MpegTsParser/MpegTsParser/video/";
-  std::string videoLocaltion = "D:/data/8.3/ts/";
+  std::string videoLocaltion = "E:/Data/debug/8_5/ts/ts/";
   std::string destLocaltion = videoLocaltion + "*.*";
   listFiles(destLocaltion.c_str(), localFiles);
 
@@ -427,7 +426,8 @@ int main(int argc, char* argv[])
             Demux* demux = new Demux(file, channel, it->first);
             demux->Do();
             std::list<TSDemux::STREAM_PKT*> *lst = demux->getParseredData();
-            dataContainer.addData(lst, it->first);
+            dataContainer.printCurrentList(lst, it->first);
+            //dataContainer.addData(lst, it->first);
             delete demux;
             fclose(file);
         }
@@ -436,7 +436,7 @@ int main(int argc, char* argv[])
         }
     }
 
-    dataContainer.printInfo();
+    //dataContainer.printInfo();
   }
   else {
     fprintf(stderr, "No file specified\n\n");
@@ -472,6 +472,5 @@ void listFiles(const char *dir, std::map<int, std::string> &mapFiles)
         }
     } while (_findnext(handle, &findData) == 0);
 
-   
     _findclose(handle); 
 }
