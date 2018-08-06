@@ -364,11 +364,12 @@ int main(int argc, char* argv[])
   uint16_t channel = 0;
   int i = 0;
 
-  ParseredDataContainer dataContainer(PRINT_AUDIO);
+  int printLogType = PRINT_ALL;
+  ParseredDataContainer dataContainer(printLogType);
   std::map<int, std::string> localFiles;
 
   //std::string videoLocaltion = "D:/MyProg/MpegTsParser/MpegTsParser/video/";
-  std::string videoLocaltion = "E:/Data/debug/8_5/ts/ts/";
+  std::string videoLocaltion = "D:/data/8.6/ts1/";
   std::string destLocaltion = videoLocaltion + "*.*";
   listFiles(destLocaltion.c_str(), localFiles);
 
@@ -403,7 +404,16 @@ int main(int argc, char* argv[])
     }
   }
 
-  g_logFile = fopen("debug.log", "w");
+  std::string logFile = "out_";
+  if (printLogType == PRINT_AUDIO) {
+      logFile += "audio.log";
+  } else if ( printLogType == PRINT_VIDEO) {
+      logFile += "video.log";
+  } else {
+      logFile += "all.log";
+  }
+
+  g_logFile = fopen(logFile.c_str(), "w");
   if (g_logFile != NULL) {
       TSDemux::SetDBGMsgCallback(LogOut);
   }
@@ -427,7 +437,6 @@ int main(int argc, char* argv[])
             demux->Do();
             std::list<TSDemux::STREAM_PKT*> *lst = demux->getParseredData();
             dataContainer.printCurrentList(lst, it->first);
-            //dataContainer.addData(lst, it->first);
             delete demux;
             fclose(file);
         }
@@ -436,7 +445,6 @@ int main(int argc, char* argv[])
         }
     }
 
-    //dataContainer.printInfo();
   }
   else {
     fprintf(stderr, "No file specified\n\n");

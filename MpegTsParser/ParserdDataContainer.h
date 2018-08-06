@@ -21,13 +21,15 @@ private:
     void printAudioInfo(std::list<TSDemux::STREAM_PKT*> *lst, int index);
     void printAllMediaInfo(std::list<TSDemux::STREAM_PKT*> *lst, int index);
 private:
-    //std::list<std::list<TSDemux::STREAM_PKT*>*> mParserdData;
+
     std::map<int, std::list<TSDemux::STREAM_PKT*>*> mParserdData;
+    std::set<int64_t> mVideoDistanceSets;
 
     int mPrintType;
     int mVideoPid;
     int mAudioPid;
     int64_t mLastAudioDts;
     int64_t mLastVideoDts;
+    int64_t mLastVideoPts;
 };
 
