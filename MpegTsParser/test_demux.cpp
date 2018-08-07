@@ -356,7 +356,7 @@ void  LogOut(int level, char *log) {
     }
 }
 
-void listFiles(const char *dir, std::map<int, std::string> &mapFiles);
+void listFiles(const char *dir, std::vector<std::string> &localFiles);
 
 int main(int argc, char* argv[])
 {
@@ -364,9 +364,9 @@ int main(int argc, char* argv[])
   uint16_t channel = 0;
   int i = 0;
 
-  int printLogType = PRINT_ALL;
-  ParseredDataContainer dataContainer(printLogType);
-  std::map<int, std::string> localFiles;
+
+  GYJ::ParseredDataContainer dataContainer(GYJ::printParam(GYJ::PRINT_MEDIA_AUDIO, GYJ::PRINT_PARTLY_PTS));
+  std::vector<std::string> localFiles;
 
   //std::string videoLocaltion = "D:/MyProg/MpegTsParser/MpegTsParser/video/";
   std::string videoLocaltion = "D:/data/8.6/ts1/";
@@ -404,14 +404,8 @@ int main(int argc, char* argv[])
     }
   }
 
-  std::string logFile = "out_";
-  if (printLogType == PRINT_AUDIO) {
-      logFile += "audio.log";
-  } else if ( printLogType == PRINT_VIDEO) {
-      logFile += "video.log";
-  } else {
-      logFile += "all.log";
-  }
+  std::string logFile = "debug_info.log";
+
 
   g_logFile = fopen(logFile.c_str(), "w");
   if (g_logFile != NULL) {
@@ -420,8 +414,8 @@ int main(int argc, char* argv[])
 
   if (!localFiles.empty()){
       int index = 0;
-    for (std::map<int, std::string>::iterator it = localFiles.begin(); it != localFiles.end(); it++) {
-        std::string curFile = videoLocaltion + it->second;
+    for (std::vector<std::string>::iterator it = localFiles.begin(); it != localFiles.end(); it++) {
+        std::string curFile = videoLocaltion + *it;
 
         FILE* file = NULL;
         if (strcmp(curFile.c_str(), "-") == 0){
@@ -433,10 +427,14 @@ int main(int argc, char* argv[])
 
         if (file){
             fprintf(stderr, "## Processing TS stream from %s ##\n", curFile.c_str());
-            Demux* demux = new Demux(file, channel, it->first);
+            Demux* demux = new Demux(file, channel, 0);
             demux->Do();
             std::list<TSDemux::STREAM_PKT*> *lst = demux->getParseredData();
-            dataContainer.printCurrentList(lst, it->first);
+            GYJ::tsParam *param = new GYJ::tsParam(*it, demux->getTsStartTimeStamp(), lst);
+            if (param != NULL) {
+                dataContainer.addData(param->tsStartTime, param);
+            }
+            
             delete demux;
             fclose(file);
         }
@@ -445,6 +443,7 @@ int main(int argc, char* argv[])
         }
     }
 
+    dataContainer.printInfo();
   }
   else {
     fprintf(stderr, "No file specified\n\n");
@@ -458,7 +457,7 @@ int main(int argc, char* argv[])
 }
 
 
-void listFiles(const char *dir, std::map<int, std::string> &mapFiles)
+void listFiles(const char *dir, std::vector<std::string> &localFiles)
 {
     intptr_t handle;
     _finddata_t findData;
@@ -475,8 +474,7 @@ void listFiles(const char *dir, std::map<int, std::string> &mapFiles)
             ){ 
              continue;
         }else{
-            int index = atoi(findData.name);
-            mapFiles.insert(std::make_pair(index, findData.name));
+            localFiles.push_back(findData.name);
         }
     } while (_findnext(handle, &findData) == 0);
 

@@ -55,6 +55,7 @@ AVContext::AVContext(TSDemuxer* const demux, uint64_t pos, uint16_t channel, int
   , mVideoPid(0)
   , mAudioPid(0)
   , mFileIndex(fileIndex)
+  , mTsStartTimeStamp(-1)
 {
   m_demux = demux;
   memset(av_buf, 0, sizeof(av_buf));
@@ -889,6 +890,10 @@ int AVContext::parse_ts_pes()
         mVideoPktCount++;
     } else if (curPkt->pid == mAudioPid) {
         mAudioPktCount++;
+    }
+
+    if (mTsStartTimeStamp == -1) {
+        mTsStartTimeStamp = curPkt->dts;
     }
 
     mMediaPkts->push_back(curPkt);

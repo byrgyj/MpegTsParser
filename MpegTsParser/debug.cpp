@@ -38,7 +38,7 @@ typedef struct
   void (*msg_callback)(int level, char* msg);
 } debug_ctx_t;
 
-static debug_ctx_t debug_ctx = {"TSDemux", DEMUX_DBG_NONE, NULL};
+static debug_ctx_t debug_ctx = {"", DEMUX_DBG_NONE, NULL};
 
 /**
  * Set the debug level to be used for the subsystem
@@ -66,7 +66,7 @@ static inline void __dbg(debug_ctx_t* ctx, int level, const char* fmt, va_list a
   if (ctx != NULL && level <= ctx->cur_level)
   {
     char msg[4096];
-    int len = snprintf(msg, sizeof (msg), "(%s)", ctx->name);
+    int len = snprintf(msg, sizeof (msg), "%s", ctx->name);
     vsnprintf(msg + len, sizeof (msg) - len, fmt, ap);
     if (ctx->msg_callback)
     {

@@ -89,6 +89,7 @@ namespace TSDemux
     int ProcessTSPacket();
     int ProcessTSPayload();
 
+    int64_t getTsStartTimeStamp() { return mTsStartTimeStamp; }
   private:
     AVContext(const AVContext&);
     AVContext& operator=(const AVContext&);
@@ -130,8 +131,8 @@ namespace TSDemux
     // TS Streams context
     bool is_configured;
     uint16_t channel;
+    int64_t mTsStartTimeStamp; // first video packet dts;
     std::map<uint16_t, Packet> mTsTypePkts;
-
     std::list<TSDemux::STREAM_PKT*> *mMediaPkts;
 
     // Packet context

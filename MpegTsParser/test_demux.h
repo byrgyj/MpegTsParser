@@ -38,6 +38,7 @@ public:
   int Do(void);
   const unsigned char* ReadAV(uint64_t pos, size_t n);
   std::list<TSDemux::STREAM_PKT*> *getParseredData() { return m_AVContext->getMediaPkts(); }
+  int64_t getTsStartTimeStamp() { return m_AVContext->getTsStartTimeStamp(); }
 private:
   FILE* m_ifile;
   int mFileIndex;
