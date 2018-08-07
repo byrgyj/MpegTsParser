@@ -57,9 +57,6 @@
     <ClInclude Include="ES_Teletext.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="test_demux.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
     <ClInclude Include="tsDemuxer.h">
       <Filter>Header Files</Filter>
     </ClInclude>
@@ -70,6 +67,9 @@
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="ParserdDataContainer.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="TsLayer.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>
@@ -120,6 +120,9 @@
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="ParserdDataContainer.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="TsLayer.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>
