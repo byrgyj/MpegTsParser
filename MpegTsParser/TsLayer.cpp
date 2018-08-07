@@ -17,7 +17,7 @@ TsLayer::TsLayer(FILE* file, uint16_t channel, int fileIndex) : m_channel(channe
         mAudioPid = 0xffff;
 
         mPinTime = mCurTime = mEndTime = 0;
-        m_AVContext = new TSDemux::AVContext(this, 0, m_channel, fileIndex);
+        mTsContext = new TSDemux::TsLayerContext(this, 0, m_channel, fileIndex);
     }
     else
     {
@@ -27,8 +27,8 @@ TsLayer::TsLayer(FILE* file, uint16_t channel, int fileIndex) : m_channel(channe
 
 TsLayer::~TsLayer()
 {
-    if (m_AVContext) {
-        delete m_AVContext;
+    if (mTsContext) {
+        delete mTsContext;
     }
 
     if (mBuffer != NULL){
@@ -91,14 +91,14 @@ int TsLayer::doDemux(){
     int indexCount = 0;
 
     while (true){
-        ret = m_AVContext->TSResync();
+        ret = mTsContext->tsSync();
         if (ret != TSDemux::AVCONTEXT_CONTINUE){
             break;
         }
 
-        ret = m_AVContext->ProcessTSPacket();
+        ret = mTsContext->ProcessTSPacket();
         indexCount++;
-        if (m_AVContext->HasPIDStreamData()){
+        if (mTsContext->HasPIDStreamData()){
             TSDemux::STREAM_PKT pkt;
             while (getStreamData(&pkt)){
                 //if (pkt->streamChange)
@@ -106,8 +106,8 @@ int TsLayer::doDemux(){
                 //WriteStreamData(pkt)
             }
         }
-        if (m_AVContext->HasPIDPayload()){
-            ret = m_AVContext->ProcessTSPayload();
+        if (mTsContext->HasPIDPayload()){
+            ret = mTsContext->ProcessTSPayload();
             if (ret == TSDemux::AVCONTEXT_PROGRAM_CHANGE) {
                 registerPMT();
                 //std::vector<TSDemux::ElementaryStream*> streams = m_AVContext->GetStreams();
@@ -119,9 +119,9 @@ int TsLayer::doDemux(){
         }
 
         if (ret == TSDemux::AVCONTEXT_TS_ERROR) {
-            m_AVContext->Shift();
+            mTsContext->Shift();
         } else {
-            m_AVContext->GoNext();
+            mTsContext->goNext();
         }
     }
 
@@ -129,7 +129,7 @@ int TsLayer::doDemux(){
 }
 
 bool TsLayer::getStreamData(TSDemux::STREAM_PKT* pkt) {
-    TSDemux::ElementaryStream* es = m_AVContext->GetPIDStream();
+    TSDemux::ElementaryStream* es = mTsContext->GetPIDStream();
     if (!es) {
         return false;
     }
@@ -148,7 +148,7 @@ bool TsLayer::getStreamData(TSDemux::STREAM_PKT* pkt) {
             if (mCurTime > mEndTime){
                 AV_POSMAP_ITEM item;
                 item.packetPts = pkt->pts;
-                item.packetDts = m_AVContext->GetPosition();
+                item.packetDts = mTsContext->GetPosition();
                 mPosMap.insert(std::make_pair(mCurTime, item));
                 mEndTime = mCurTime;
             }
@@ -168,7 +168,7 @@ void TsLayer::resetPosmap(){
 }
 
 void TsLayer::registerPMT(){
-    const std::vector<TSDemux::ElementaryStream*> es_streams = m_AVContext->GetStreams();
+    const std::vector<TSDemux::ElementaryStream*> es_streams = mTsContext->GetStreams();
     if (!es_streams.empty()) {
         mVideoPid = es_streams[0]->pid;
 
@@ -177,9 +177,9 @@ void TsLayer::registerPMT(){
         }
 
         for (std::vector<TSDemux::ElementaryStream*>::const_iterator it = es_streams.begin(); it != es_streams.end(); ++it) {
-            uint16_t channel = m_AVContext->GetChannel((*it)->pid);
+            uint16_t channel = mTsContext->GetChannel((*it)->pid);
             const char* codec_name = (*it)->GetStreamCodecName();
-            m_AVContext->StartStreaming((*it)->pid);
+            mTsContext->StartStreaming((*it)->pid);
         }
     }
 }
@@ -193,12 +193,12 @@ static inline int stream_identifier(int composition_id, int ancillary_id){
 }
 
 void TsLayer::showStreamInfo(uint16_t pid){
-    TSDemux::ElementaryStream* es = m_AVContext->GetStream(pid);
+    TSDemux::ElementaryStream* es = mTsContext->GetStream(pid);
     if (!es) {
         return;
     }
 
-    uint16_t channel = m_AVContext->GetChannel(pid);
+    uint16_t channel = mTsContext->GetChannel(pid);
     printf(LOGTAG "dump stream infos for channel %u PID %.4x\n", channel, es->pid);
     printf("  Codec name     : %s\n", es->GetStreamCodecName());
     printf("  Language       : %s\n", es->stream_info.language);

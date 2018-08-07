@@ -58,15 +58,12 @@ namespace TSDemux
     AVCONTEXT_DISCONTINUITY       = 3
   };
 
-  class AVContext
+  class TsLayerContext
   {
   public:
-    AVContext(TSDemuxer* const demux, uint64_t pos, uint16_t channel, int fileIndex);
+    TsLayerContext(TSDemuxer* const demux, uint64_t pos, uint16_t channel, int fileIndex);
     void Reset(void);
 
-    uint16_t GetPID() const;
-    PACKET_TYPE GetPIDType() const;
-    uint16_t GetPIDChannel() const;
     bool HasPIDStreamData() const;
     bool HasPIDPayload() const;
     ElementaryStream* GetPIDStream();
@@ -81,8 +78,8 @@ namespace TSDemux
     std::list<TSDemux::STREAM_PKT*> *getMediaPkts() { return mMediaPkts; }
 
     // TS parser
-    int TSResync();
-    uint64_t GoNext();
+    int tsSync();
+    uint64_t goNext();
     uint64_t Shift();
     void GoPosition(uint64_t pos);
     uint64_t GetPosition() const;
@@ -91,8 +88,8 @@ namespace TSDemux
 
     int64_t getTsStartTimeStamp() { return mTsStartTimeStamp; }
   private:
-    AVContext(const AVContext&);
-    AVContext& operator=(const AVContext&);
+    TsLayerContext(const TsLayerContext&);
+    TsLayerContext& operator=(const TsLayerContext&);
 
     int configure_ts();
     static STREAM_TYPE get_stream_type(uint8_t pes_type);
@@ -100,10 +97,10 @@ namespace TSDemux
     static uint16_t av_rb16(const unsigned char* p);
     static uint32_t av_rb32(const unsigned char* p);
     static uint64_t decode_pts(const unsigned char* p);
+     static STREAM_INFO parse_pes_descriptor(const unsigned char* p, size_t len, STREAM_TYPE* st);
     void clear_pmt();
     void clear_pes(uint16_t channel);
     int parse_ts_psi();
-    static STREAM_INFO parse_pes_descriptor(const unsigned char* p, size_t len, STREAM_TYPE* st);
     int parse_ts_pes();
 
     int parsePat(const unsigned char *data, const unsigned char *dataEnd);
@@ -138,10 +135,10 @@ namespace TSDemux
     // Packet context
     uint16_t pid;
     bool transport_error;
-    bool has_payload;
+    bool mHasPayload;
     bool payload_unit_start;
     bool discontinuity;
-    const unsigned char* payload;
+    const unsigned char *mTsPayload;
     size_t payload_len;
     Packet* mCurrentPkt;
   };

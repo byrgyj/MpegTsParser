@@ -1,5 +1,5 @@
 #pragma once
-#include "tsDemuxer.h"
+#include "TsLayerContext.h"
 
 #define AV_BUFFER_SIZE          131072
 #define POSMAP_PTS_INTERVAL     270000LL
@@ -12,8 +12,8 @@ public:
 
     int doDemux();
     const unsigned char* ReadAV(uint64_t pos, size_t n);
-    std::list<TSDemux::STREAM_PKT*> *getParseredData() { return m_AVContext->getMediaPkts(); }
-    int64_t getTsStartTimeStamp() { return m_AVContext->getTsStartTimeStamp(); }
+    std::list<TSDemux::STREAM_PKT*> *getParseredData() { return mTsContext->getMediaPkts(); }
+    int64_t getTsStartTimeStamp() { return mTsContext->getTsStartTimeStamp(); }
 
 private:
     bool getStreamData(TSDemux::STREAM_PKT* pkt);
@@ -35,7 +35,7 @@ private:
     unsigned char *mBufferEnd;      ///< raw data end in buffer
 
     // Playback context
-    TSDemux::AVContext* m_AVContext;
+    TSDemux::TsLayerContext *mTsContext;
     uint16_t mVideoPid;
     uint16_t mAudioPid;
  

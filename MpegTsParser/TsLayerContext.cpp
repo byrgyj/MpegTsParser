@@ -19,7 +19,7 @@
  *
  */
 
-#include "tsDemuxer.h"
+#include "TsLayerContext.h"
 #include "ES_MPEGVideo.h"
 #include "ES_MPEGAudio.h"
 #include "ES_h264.h"
@@ -36,7 +36,7 @@
 
 using namespace TSDemux;
 
-AVContext::AVContext(TSDemuxer* const demux, uint64_t pos, uint16_t channel, int fileIndex)
+TsLayerContext::TsLayerContext(TSDemuxer* const demux, uint64_t pos, uint16_t channel, int fileIndex)
   : av_pos(pos)
   , av_data_len(FLUTS_NORMAL_TS_PACKETSIZE)
   , av_pkt_size(0)
@@ -44,10 +44,10 @@ AVContext::AVContext(TSDemuxer* const demux, uint64_t pos, uint16_t channel, int
   , channel(channel)
   , pid(0xffff)
   , transport_error(false)
-  , has_payload(false)
+  , mHasPayload(false)
   , payload_unit_start(false)
   , discontinuity(false)
-  , payload(NULL)
+  , mTsPayload(NULL)
   , payload_len(0)
   , mCurrentPkt(NULL)
   , mVideoPktCount(0)
@@ -63,44 +63,22 @@ AVContext::AVContext(TSDemuxer* const demux, uint64_t pos, uint16_t channel, int
   mMediaPkts = new std::list<TSDemux::STREAM_PKT*>;
 };
 
-void AVContext::Reset(void)
+void TsLayerContext::Reset(void)
 {
   PLATFORM::CLockObject lock(mutex);
 
   pid = 0xffff;
   transport_error = false;
-  has_payload = false;
+  mHasPayload = false;
   payload_unit_start = false;
   discontinuity = false;
-  payload = NULL;
+  mTsPayload = NULL;
   payload_len = 0;
   mCurrentPkt = NULL;
 }
 
-uint16_t AVContext::GetPID() const
-{
-  return pid;
-}
 
-PACKET_TYPE AVContext::GetPIDType() const
-{
-  PLATFORM::CLockObject lock(mutex);
-
-  if (mCurrentPkt)
-    return mCurrentPkt->packet_type;
-  return PACKET_TYPE_UNKNOWN;
-}
-
-uint16_t AVContext::GetPIDChannel() const
-{
-  PLATFORM::CLockObject lock(mutex);
-
-  if (mCurrentPkt)
-    return mCurrentPkt->channel;
-  return 0xffff;
-}
-
-bool AVContext::HasPIDStreamData() const
+bool TsLayerContext::HasPIDStreamData() const
 {
   PLATFORM::CLockObject lock(mutex);
 
@@ -111,12 +89,12 @@ bool AVContext::HasPIDStreamData() const
   return false;
 }
 
-bool AVContext::HasPIDPayload() const
+bool TsLayerContext::HasPIDPayload() const
 {
-  return has_payload;
+  return mHasPayload;
 }
 
-ElementaryStream* AVContext::GetPIDStream()
+ElementaryStream* TsLayerContext::GetPIDStream()
 {
   PLATFORM::CLockObject lock(mutex);
 
@@ -125,7 +103,7 @@ ElementaryStream* AVContext::GetPIDStream()
   return NULL;
 }
 
-std::vector<ElementaryStream*> AVContext::GetStreams()
+std::vector<ElementaryStream*> TsLayerContext::GetStreams()
 {
   PLATFORM::CLockObject lock(mutex);
 
@@ -136,7 +114,7 @@ std::vector<ElementaryStream*> AVContext::GetStreams()
   return v;
 }
 
-void AVContext::StartStreaming(uint16_t pid)
+void TsLayerContext::StartStreaming(uint16_t pid)
 {
   PLATFORM::CLockObject lock(mutex);
 
@@ -145,7 +123,7 @@ void AVContext::StartStreaming(uint16_t pid)
     it->second.streaming = true;
 }
 
-void AVContext::StopStreaming(uint16_t pid)
+void TsLayerContext::StopStreaming(uint16_t pid)
 {
   PLATFORM::CLockObject lock(mutex);
 
@@ -154,7 +132,7 @@ void AVContext::StopStreaming(uint16_t pid)
     it->second.streaming = false;
 }
 
-ElementaryStream* AVContext::GetStream(uint16_t pid) const
+ElementaryStream* TsLayerContext::GetStream(uint16_t pid) const
 {
   PLATFORM::CLockObject lock(mutex);
 
@@ -164,7 +142,7 @@ ElementaryStream* AVContext::GetStream(uint16_t pid) const
   return NULL;
 }
 
-uint16_t AVContext::GetChannel(uint16_t pid) const
+uint16_t TsLayerContext::GetChannel(uint16_t pid) const
 {
   PLATFORM::CLockObject lock(mutex);
 
@@ -174,7 +152,7 @@ uint16_t AVContext::GetChannel(uint16_t pid) const
   return 0xffff;
 }
 
-void AVContext::ResetPackets()
+void TsLayerContext::ResetPackets()
 {
   PLATFORM::CLockObject lock(mutex);
 
@@ -189,33 +167,33 @@ void AVContext::ResetPackets()
 /////  MPEG-TS parser for the context
 /////
 
-uint8_t AVContext::av_rb8(const unsigned char* p)
+uint8_t TsLayerContext::av_rb8(const unsigned char* p)
 {
   uint8_t val = *(uint8_t*)p;
   return val;
 }
 
-uint16_t AVContext::av_rb16(const unsigned char* p)
+uint16_t TsLayerContext::av_rb16(const unsigned char* p)
 {
   uint16_t val = av_rb8(p) << 8;
   val |= av_rb8(p + 1);
   return val;
 }
 
-uint32_t AVContext::av_rb32(const unsigned char* p)
+uint32_t TsLayerContext::av_rb32(const unsigned char* p)
 {
   uint32_t val = av_rb16(p) << 16;
   val |= av_rb16(p + 2);
   return val;
 }
 
-uint64_t AVContext::decode_pts(const unsigned char* p)
+uint64_t TsLayerContext::decode_pts(const unsigned char* p)
 {
   uint64_t pts = (uint64_t)(av_rb8(p) & 0x0e) << 29 | (av_rb16(p + 1) >> 1) << 15 | av_rb16(p + 3) >> 1;
   return pts;
 }
 
-STREAM_TYPE AVContext::get_stream_type(uint8_t pes_type)
+STREAM_TYPE TsLayerContext::get_stream_type(uint8_t pes_type)
 {
   switch (pes_type)
   {
@@ -255,7 +233,7 @@ STREAM_TYPE AVContext::get_stream_type(uint8_t pes_type)
   return STREAM_TYPE_UNKNOWN;
 }
 
-int AVContext::configure_ts()
+int TsLayerContext::configure_ts()
 {
   size_t data_size = AV_CONTEXT_PACKETSIZE;
   uint64_t pos = av_pos;
@@ -326,8 +304,7 @@ int AVContext::configure_ts()
   return AVCONTEXT_TS_NOSYNC;
 }
 
-int AVContext::TSResync()
-{
+int TsLayerContext::tsSync(){
   if (!is_configured)
   {
     int ret = configure_ts();
@@ -352,27 +329,25 @@ int AVContext::TSResync()
   return AVCONTEXT_TS_NOSYNC;
 }
 
-uint64_t AVContext::GoNext()
-{
+uint64_t TsLayerContext::goNext(){
   av_pos += av_pkt_size;
   Reset();
   return av_pos;
 }
 
-uint64_t AVContext::Shift()
-{
+uint64_t TsLayerContext::Shift(){
   av_pos++;
   Reset();
   return av_pos;
 }
 
-void AVContext::GoPosition(uint64_t pos)
+void TsLayerContext::GoPosition(uint64_t pos)
 {
   av_pos = pos;
   Reset();
 }
 
-uint64_t AVContext::GetPosition() const
+uint64_t TsLayerContext::GetPosition() const
 {
   return av_pos;
 }
@@ -399,42 +374,42 @@ uint64_t AVContext::GetPosition() const
  * AVCONTEXT_TS_ERROR
  *  Parsing error !
  */
-int AVContext::ProcessTSPacket()
+int TsLayerContext::ProcessTSPacket()
 {
   PLATFORM::CLockObject lock(mutex);
 
   int ret = AVCONTEXT_CONTINUE;
   std::map<uint16_t, Packet>::iterator it;
 
-  if (av_rb8(this->av_buf) != 0x47) // ts sync byte
+  if (av_rb8(av_buf) != 0x47){
     return AVCONTEXT_TS_NOSYNC;
+  }
 
-  uint16_t header = av_rb16(this->av_buf + 1);
-  this->pid = header & 0x1fff;
-  this->transport_error = (header & 0x8000) != 0;
-  this->payload_unit_start = (header & 0x4000) != 0;
+  uint16_t header = av_rb16(av_buf + 1);
+  pid = header & 0x1fff;
+  transport_error = (header & 0x8000) != 0;
+  payload_unit_start = (header & 0x4000) != 0;
   // Cleaning context
-  this->discontinuity = false;
-  this->has_payload = false;
-  this->payload = NULL;
-  this->payload_len = 0;
+  discontinuity = false;
+  mHasPayload = false;
+  mTsPayload = NULL;
+  payload_len = 0;
 
-  if (this->transport_error)
+  if (transport_error)
     return AVCONTEXT_CONTINUE;
   // Null packet
-  if (this->pid == 0x1fff)
+  if (pid == 0x1fff)
     return AVCONTEXT_CONTINUE;
 
-  uint8_t flags = av_rb8(this->av_buf + 3);
-  bool has_payload = (flags & 0x10) != 0;
+  uint8_t flags = av_rb8(av_buf + 3);
+  bool is_payload = (flags & 0x10) != 0;
   bool is_discontinuity = false;
   uint8_t continuity_counter = flags & 0x0f;
   bool has_adaptation = (flags & 0x20) != 0;
   size_t n = 0;
-  if (has_adaptation)
-  {
-    size_t len = (size_t)av_rb8(this->av_buf + 4);
-    if (len > (this->av_data_len - 5))
+  if (has_adaptation) {
+    size_t len = (size_t)av_rb8(av_buf + 4);
+    if (len > (av_data_len - 5))
     {
 #if defined(TSDEMUX_DEBUG)
       assert(false);
@@ -445,48 +420,45 @@ int AVContext::ProcessTSPacket()
     n = len + 1;
     if (len > 0)
     {
-      is_discontinuity = (av_rb8(this->av_buf + 5) & 0x80) != 0;
+      is_discontinuity = (av_rb8(av_buf + 5) & 0x80) != 0;
     }
   }
-  if (has_payload)
+  if (is_payload)
   {
     // Payload start after adaptation fields
-    this->payload = this->av_buf + n + 4;
-    this->payload_len = this->av_data_len - n - 4;
+    mTsPayload = av_buf + n + 4;
+    payload_len = av_data_len - n - 4;
   }
 
-  it = mTsTypePkts.find(this->pid);
-  if (it == mTsTypePkts.end())
-  {
+  it = mTsTypePkts.find(pid);
+  if (it == mTsTypePkts.end()){
     // Not registred PID
     // We are waiting for unit start of PID 0 else next packet is required
-    if (this->pid == 0 && this->payload_unit_start)
+    if (pid == 0 && payload_unit_start)
     {
       // Registering PID 0
       Packet pid0;
-      pid0.pid = this->pid;
+      pid0.pid = pid;
       pid0.packet_type = PACKET_TYPE_PSI;
       pid0.continuity = continuity_counter;
-      it = mTsTypePkts.insert(it, std::make_pair(this->pid, pid0));
-    }
-    else
+      it = mTsTypePkts.insert(it, std::make_pair(pid, pid0));
+    } else {
       return AVCONTEXT_CONTINUE;
-  }
-  else
-  {
+    }
+  } else {
     // PID is registred
     // Checking unit start is required
-    if (it->second.wait_unit_start && !this->payload_unit_start)
+    if (it->second.wait_unit_start && !payload_unit_start)
     {
       // Not unit start. Save packet flow continuity...
       it->second.continuity = continuity_counter;
-      this->discontinuity = true;
+      discontinuity = true;
       return AVCONTEXT_DISCONTINUITY;
     }
     // Checking continuity where possible
     if (it->second.continuity != 0xff)
     {
-      uint8_t expected_cc = has_payload ? (it->second.continuity + 1) & 0x0f : it->second.continuity;
+      uint8_t expected_cc = is_payload ? (it->second.continuity + 1) & 0x0f : it->second.continuity;
       if (!is_discontinuity && expected_cc != continuity_counter)
       {
         this->discontinuity = true;
@@ -503,7 +475,7 @@ int AVContext::ProcessTSPacket()
   }
 
   this->discontinuity |= is_discontinuity;
-  this->has_payload = has_payload;
+  mHasPayload = is_payload;
   mCurrentPkt = &(it->second);
 
   // It is time to stream data for PES
@@ -524,7 +496,7 @@ int AVContext::ProcessTSPacket()
  * PACKET_TYPE_PSI -> parse_ts_psi()
  * PACKET_TYPE_PES -> parse_ts_pes()
  */
-int AVContext::ProcessTSPayload()
+int TsLayerContext::ProcessTSPayload()
 {
   PLATFORM::CLockObject lock(mutex);
 
@@ -547,7 +519,7 @@ int AVContext::ProcessTSPayload()
   return ret;
 }
 
-void AVContext::clear_pmt()
+void TsLayerContext::clear_pmt()
 {
   DBG(DEMUX_DBG_DEBUG, "%s\n", __FUNCTION__);
   std::vector<uint16_t> pid_list;
@@ -563,7 +535,7 @@ void AVContext::clear_pmt()
     mTsTypePkts.erase(*it);
 }
 
-void AVContext::clear_pes(uint16_t channel)
+void TsLayerContext::clear_pes(uint16_t channel)
 {
   DBG(DEMUX_DBG_DEBUG, "%s(%u)\n", __FUNCTION__, channel);
   std::vector<uint16_t> pid_list;
@@ -592,18 +564,18 @@ void AVContext::clear_pes(uint16_t channel)
  * AVCONTEXT_TS_ERROR
  *  Parsing error !
  */
-int AVContext::parse_ts_psi()
+int TsLayerContext::parse_ts_psi()
 {
   size_t len;
 
-  if (!this->has_payload || !this->payload || !this->payload_len || !mCurrentPkt)
+  if (!mHasPayload || !mTsPayload || !this->payload_len || !mCurrentPkt)
     return AVCONTEXT_CONTINUE;
 
   if (this->payload_unit_start){
     // Reset wait for unit start
     mCurrentPkt->wait_unit_start = false;
     // pointer field present
-    len = (size_t)av_rb8(this->payload);
+    len = (size_t)av_rb8(mTsPayload);
     if (len > this->payload_len)
     {
 #if defined(TSDEMUX_DEBUG)
@@ -614,10 +586,10 @@ int AVContext::parse_ts_psi()
     }
 
     // table ID
-    uint8_t table_id = av_rb8(this->payload + 1);
+    uint8_t table_id = av_rb8(mTsPayload + 1);
 
     // table length
-    len = (size_t)av_rb16(this->payload + 2);
+    len = (size_t)av_rb16(mTsPayload + 2);
     if ((len & 0x3000) != 0x3000)
     {
 #if defined(TSDEMUX_DEBUG)
@@ -631,7 +603,7 @@ int AVContext::parse_ts_psi()
     mCurrentPkt->packet_table.Reset();
 
     size_t n = this->payload_len - 4;
-    memcpy(mCurrentPkt->packet_table.buf, this->payload + 4, n);
+    memcpy(mCurrentPkt->packet_table.buf, mTsPayload + 4, n);
     mCurrentPkt->packet_table.table_id = table_id;
     mCurrentPkt->packet_table.offset = n;
     mCurrentPkt->packet_table.len = len;
@@ -657,7 +629,7 @@ int AVContext::parse_ts_psi()
       return AVCONTEXT_TS_ERROR;
 #endif
     }
-    memcpy(mCurrentPkt->packet_table.buf + mCurrentPkt->packet_table.offset, this->payload, this->payload_len);
+    memcpy(mCurrentPkt->packet_table.buf + mCurrentPkt->packet_table.offset, mTsPayload, this->payload_len);
     mCurrentPkt->packet_table.offset += this->payload_len;
     // check for incomplete section
     if (mCurrentPkt->packet_table.offset < mCurrentPkt->packet_table.len)
@@ -683,7 +655,7 @@ int AVContext::parse_ts_psi()
   return AVCONTEXT_CONTINUE;
 }
 
-STREAM_INFO AVContext::parse_pes_descriptor(const unsigned char* p, size_t len, STREAM_TYPE* st)
+STREAM_INFO TsLayerContext::parse_pes_descriptor(const unsigned char* p, size_t len, STREAM_TYPE* st)
 {
   const unsigned char* desc_end = p + len;
   STREAM_INFO si;
@@ -767,9 +739,9 @@ STREAM_INFO AVContext::parse_pes_descriptor(const unsigned char* p, size_t len, 
  * AVCONTEXT_TS_ERROR
  *  Parsing error !
  */
-int AVContext::parse_ts_pes()
+int TsLayerContext::parse_ts_pes()
 {
-  if (!this->has_payload || !this->payload || !this->payload_len || !mCurrentPkt)
+  if (!mHasPayload|| !mTsPayload || !this->payload_len || !mCurrentPkt)
     return AVCONTEXT_CONTINUE;
 
   if (!mCurrentPkt->stream)
@@ -805,7 +777,7 @@ int AVContext::parse_ts_pes()
     if (n > (this->payload_len - pos))
       n = this->payload_len - pos;
 
-    memcpy(mCurrentPkt->packet_table.buf + mCurrentPkt->packet_table.offset, this->payload + pos, n);
+    memcpy(mCurrentPkt->packet_table.buf + mCurrentPkt->packet_table.offset, mTsPayload + pos, n);
     mCurrentPkt->packet_table.offset += n;
     pos += n;
 
@@ -901,7 +873,7 @@ int AVContext::parse_ts_pes()
 
   if (mCurrentPkt->streaming)
   {
-    const unsigned char* data = this->payload + pos;
+    const unsigned char* data = mTsPayload + pos;
     size_t len = this->payload_len - pos;
     mCurrentPkt->stream->Append(data, len, has_pts);
   }
@@ -909,7 +881,7 @@ int AVContext::parse_ts_pes()
   return AVCONTEXT_CONTINUE;
 }
 
-int AVContext::parsePat(const unsigned char *data, const unsigned char *dataEnd){
+int TsLayerContext::parsePat(const unsigned char *data, const unsigned char *dataEnd){
     if (data == NULL || dataEnd == NULL) {
         return -1;
     }
@@ -982,7 +954,7 @@ int AVContext::parsePat(const unsigned char *data, const unsigned char *dataEnd)
     return 0;
 }
 
-int AVContext::parsePmt(const unsigned char *data, const unsigned char *dataEnd) {
+int TsLayerContext::parsePmt(const unsigned char *data, const unsigned char *dataEnd) {
     if (data == NULL || dataEnd == NULL) {
         return -4;
     }
