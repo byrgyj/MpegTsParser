@@ -29,18 +29,18 @@
 #include <io.h>
 #include "ParserdDataContainer.h"
 #include "TsLayer.h"
+#include "CommandLine.h"
+#include "Tool.h"
 
 #define LOGTAG  "[DEMUX] "
 
-int g_loglevel = DEMUX_DBG_DEBUG;
 int g_parseonly = 1;
 bool g_printVideoPts = false;
 bool g_printAudioPts = false;
 
 static void usage(const char* cmd)
 {
-  fprintf(stderr,
-        "Usage: %s [options] <file> | -\n\n"
+  printf("Usage: %s [options] <file> | -\n\n"
         "  Enter '-' instead a file name will process stream from standard input\n\n"
         "  --debug            enable debug output\n"
         "  --parseonly        only parse streams\n"
@@ -51,7 +51,6 @@ static void usage(const char* cmd)
 }
 
 FILE *g_logFile = NULL;
-
 void  LogOut(int level, char *log) {
     if (log != NULL && level == DEMUX_DBG_INFO) {
        std::string str(log);
@@ -59,35 +58,22 @@ void  LogOut(int level, char *log) {
     }
 }
 
-void listFiles(const char *dir, std::vector<std::string> &localFiles);
-
+using namespace GYJ;
 int main(int argc, char* argv[])
 {
   const char* filename = NULL;
   uint16_t channel = 0;
   int i = 0;
 
-  TSDemux::DBGLevel(DEMUX_DBG_INFO);
-
+  CommandLineParam cmdLine;
+  std::string videoFileLocation;
   std::vector<std::string> localFiles;
-
-  //std::string videoLocaltion = "D:/MyProg/MpegTsParser/MpegTsParser/video/";
-  std::string videoLocaltion = "D:/data/8.6/ts1/";
-  std::string destLocaltion = videoLocaltion + "*.*";
-  listFiles(destLocaltion.c_str(), localFiles);
-
-  g_printAudioPts = true;
-  g_printVideoPts = false;
 
   while (++i < argc)
   {
-    if (strcmp(argv[i], "--debug") == 0)
-    {
-      g_loglevel = DEMUX_DBG_DEBUG;
-      fprintf(stderr, "debug=Yes, ");
+    if (strcmp(argv[i], "--debug") == 0){
     }
-    else if (strcmp(argv[i], "--parseonly") == 0)
-    {
+    else if (strcmp(argv[i], "--parseonly") == 0){
       g_parseonly = 1;
       fprintf(stderr, "parseonly=Yes, ");
     }
@@ -102,24 +88,44 @@ int main(int argc, char* argv[])
       return 0;
     }
     else if (strcmp(argv[i], "--print_video") == 0) {
-
+        cmdLine.printMediaType = PRINT_MEDIA_VIDEO;
     }else if (strcmp(argv[i], "--print_audio") == 0) {
-
+        cmdLine.printMediaType = PRINT_MEDIA_AUDIO;
     }else if (strcmp(argv[i], "--print_all") == 0) {
-
+        cmdLine.printMediaType = PRINT_MEDIA_ALL;
     } else if (strcmp(argv[i], "--all_pts") == 0) {
-
+        cmdLine.printPtsType = PRINT_ALL_PTS;
     } else if (strcmp(argv[i], "--partly_pts") == 0) {
-
+        cmdLine.printPtsType = PRINT_PARTLY_PTS;
+    } else if (strcmp(argv[i], "--ts_folder_path") == 0 && ++i < argc) {
+        cmdLine.filePath = argv[i];
+        cmdLine.filePath = regulateFilePath(cmdLine.filePath);
     }
     else {
-      //filename = argv[i];
-      //vecLocalFiles.push_back(argv[i]);
+      localFiles.push_back(argv[i]);
     }
   }
 
-  GYJ::ParseredDataContainer dataContainer(GYJ::printParam(GYJ::PRINT_MEDIA_AUDIO, GYJ::PRINT_PARTLY_PTS));
-  std::string logFile = "debug_info.log";
+  if (localFiles.empty() && cmdLine.filePath.empty()) {
+      printf("should specify ts files \n");
+      return 0;
+  }
+
+  TSDemux::DBGLevel(DEMUX_DBG_INFO);
+  CommandLine::getInstance()->setCommandLineParam(cmdLine);
+
+  if (!cmdLine.filePath.empty()) {
+      std::string destLocaltion = cmdLine.filePath + "*.*";
+      listFiles(destLocaltion.c_str(), localFiles);
+  }
+
+  if (localFiles.empty()) {
+      printf("cannot find any ts files!");
+      return 0;
+  }
+
+  GYJ::ParseredDataContainer dataContainer(GYJ::printParam(cmdLine.printMediaType, cmdLine.printPtsType));
+  std::string logFile = "TsParserInfo.log";
 
 
   g_logFile = fopen(logFile.c_str(), "w");
@@ -130,7 +136,7 @@ int main(int argc, char* argv[])
   if (!localFiles.empty()){
       int index = 0;
     for (std::vector<std::string>::iterator it = localFiles.begin(); it != localFiles.end(); it++) {
-        std::string curFile = videoLocaltion + *it;
+        std::string curFile = cmdLine.filePath + *it;
 
         FILE* file = NULL;
         if (strcmp(curFile.c_str(), "-") == 0){
@@ -141,27 +147,30 @@ int main(int argc, char* argv[])
         }
 
         if (file){
-            fprintf(stderr, "## Processing TS stream from %s ##\n", curFile.c_str());
+            //printf("## process ts file: %s ##\n", curFile.c_str());
             TsLayer* demux = new TsLayer(file, channel, 0);
-            demux->doDemux();
-            std::list<TSDemux::STREAM_PKT*> *lst = demux->getParseredData();
-            GYJ::tsParam *param = new GYJ::tsParam(*it, demux->getTsStartTimeStamp(), lst);
-            if (param != NULL) {
-                dataContainer.addData(param->tsStartTime, param);
+            if (demux != NULL) {
+                demux->doDemux();
+                std::list<TSDemux::STREAM_PKT*> *lst = demux->getParseredData();
+                GYJ::tsParam *param = new GYJ::tsParam(*it, demux->getTsStartTimeStamp(), lst);
+                if (param != NULL) {
+                    dataContainer.addData(param->tsStartTime, param);
+                }
+
+                delete demux;
             }
             
-            delete demux;
             fclose(file);
         }
         else{
-            fprintf(stderr,"Cannot open file '%s' for read\n", curFile.c_str());
+            printf("cannot open file: '%s'\n", curFile.c_str());
         }
     }
 
     dataContainer.printInfo();
   }
   else {
-    fprintf(stderr, "No file specified\n\n");
+    printf("no file specified \n");
     usage(argv[0]);
   }
 
@@ -171,27 +180,3 @@ int main(int argc, char* argv[])
   return 0;
 }
 
-
-void listFiles(const char *dir, std::vector<std::string> &localFiles)
-{
-    intptr_t handle;
-    _finddata_t findData;
-
-    handle = _findfirst(dir, &findData);
-    if (handle == -1){
-        return;
-    }
-
-    do{
-        if (findData.attrib & _A_SUBDIR
-            || strcmp(findData.name, ".") == 0
-            || strcmp(findData.name, "..") == 0
-            ){ 
-             continue;
-        }else{
-            localFiles.push_back(findData.name);
-        }
-    } while (_findnext(handle, &findData) == 0);
-
-    _findclose(handle); 
-}

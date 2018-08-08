@@ -32,7 +32,6 @@ TsLayer::~TsLayer()
     }
 
     if (mBuffer != NULL){
-        printf(LOGTAG "free AV buffer: allocated size was %zu\n", mBufferSize);
         free(mBuffer);
         mBuffer = NULL;
     }

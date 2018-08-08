@@ -834,17 +834,18 @@ int TsLayerContext::parse_ts_pes()
           uint64_t dts = decode_pts(mCurrentPkt->packet_table.buf + 14);
           int64_t d = (pts - dts) & PTS_MASK;
           // more than two seconds of PTS/DTS delta, probably corrupt
-          if(d > 180000)
-          {
-            mCurrentPkt->stream->c_dts = mCurrentPkt->stream->c_pts = PTS_UNSET;
-          }
-          else
-          {
-            mCurrentPkt->stream->p_dts = mCurrentPkt->stream->c_dts;
-            mCurrentPkt->stream->p_pts = mCurrentPkt->stream->c_pts;
-            mCurrentPkt->stream->c_dts = dts;
-            mCurrentPkt->stream->c_pts = pts;
-          }
+//           if(d > 90000){
+//             mCurrentPkt->stream->c_dts = mCurrentPkt->stream->c_pts = PTS_UNSET;
+//           } else {
+//             mCurrentPkt->stream->p_dts = mCurrentPkt->stream->c_dts;
+//             mCurrentPkt->stream->p_pts = mCurrentPkt->stream->c_pts;
+//             mCurrentPkt->stream->c_dts = dts;
+//             mCurrentPkt->stream->c_pts = pts;
+//           }
+          mCurrentPkt->stream->p_dts = mCurrentPkt->stream->c_dts;
+          mCurrentPkt->stream->p_pts = mCurrentPkt->stream->c_pts;
+          mCurrentPkt->stream->c_dts = dts;
+          mCurrentPkt->stream->c_pts = pts;
         }
         else
         {

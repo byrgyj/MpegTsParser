@@ -1,6 +1,7 @@
 #include "StdAfx.h"
 #include "ParserdDataContainer.h"
 #include "debug.h"
+#include "Tool.h"
 
 namespace GYJ{
 
@@ -49,7 +50,7 @@ bool ParseredDataContainer::isEnableAudioPrint() {
 }
 
 bool ParseredDataContainer::checkCurrentPrint(int currentIndex, int totalCount) {
-    if (mPrintParam.printLevel == PRINT_PARTLY_PTS && (currentIndex < 5 || currentIndex > totalCount - 5) || mPrintParam.printLevel == PRINT_ALL_PTS) {
+    if (mPrintParam.printLevel == PRINT_PARTLY_PTS && (currentIndex < 3 || currentIndex >= totalCount - 3) || mPrintParam.printLevel == PRINT_ALL_PTS) {
         return true;
     } else {
         return false;
@@ -66,6 +67,10 @@ void ParseredDataContainer::printTimeStamp(const tsParam *tsSegment){
     std::map<int64_t, int64_t> audioData;
 
     dispatchPackets(lst, videoData, audioData);
+
+    bool videoStreamValidate = true;
+    bool audioStreamValidate = true;
+
     int currentIndex = 0;
     int packetCount = videoData.size();
 
@@ -79,13 +84,18 @@ void ParseredDataContainer::printTimeStamp(const tsParam *tsSegment){
         if (mLastVideoPts != 0) {
             int64_t distance = mapIndex->first - mLastVideoPts;
             if (mVideoFrameDistanceSets.find(distance) == mVideoFrameDistanceSets.end()) {
-                TSDemux::DBG(DEMUX_DBG_INFO, "invalidate video packet, distance:%lld, cur_pts=%lld, cur_dts=%lld, pre_pts:%lld \n", distance, pts, dts, mLastVideoPts);
+                TSDemux::DBG(DEMUX_DBG_INFO, "invalidate video pts is discontinuity, distance:%lld, cur_pts=%lld, cur_dts=%lld, pre_pts:%lld \n", distance, pts, dts, mLastVideoPts);
+                videoStreamValidate = false;
             }
         }
 
+        if (mapIndex->first - mapIndex->second >= 90000) {
+            //TSDemux::DBG(DEMUX_DBG_INFO, "video pts:%lld - dts:%lld > 90000 \n", mapIndex->first, mapIndex->second);
+        }
+
         if (checkCurrentPrint(currentIndex, packetCount)) {
-            TSDemux::DBG(DEMUX_DBG_INFO, "[video-%lld] pts=%I64d, dts=%I64d \n", tsSegment->tsStartTime, pts, dts);
-            printf("[video-%lld] pts=%lld, dts=%lld \n", tsSegment->tsStartTime, pts, dts);
+            TSDemux::DBG(DEMUX_DBG_INFO, "[V] pts=%lld, dts=%lld \n", pts, dts);
+            //printf("[video-%lld] pts=%lld, dts=%lld \n", tsSegment->tsStartTime, pts, dts);
         }
 
         mLastVideoPts = mapIndex->first;
@@ -102,17 +112,21 @@ void ParseredDataContainer::printTimeStamp(const tsParam *tsSegment){
     while (mapIndex != audioData.end()) {
         int64_t distance = mapIndex->first - mLastAudioDts;
         if (mLastAudioDts != 0 && mAudioFrameDistanceSets.find(distance) == mAudioFrameDistanceSets.end()) {
-            TSDemux::DBG(DEMUX_DBG_INFO, "invalidate audio packet distance:%lld, cur pts:%lld, pre pts:%lld \n", distance,  mapIndex->first, mLastAudioDts);
+            TSDemux::DBG(DEMUX_DBG_INFO, "invalidate audio pts is discontinuity, distance:%lld, cur pts:%lld, pre pts:%lld \n", distance,  mapIndex->first, mLastAudioDts);
+            audioStreamValidate = false;
         }
 
         if (checkCurrentPrint(currentIndex, packetCount)) {
-            TSDemux::DBG(DEMUX_DBG_INFO, "[audio-%lld] pts=%lld, dts=%lld \n", tsSegment->tsStartTime, mapIndex->first, mapIndex->second);
+            TSDemux::DBG(DEMUX_DBG_INFO, "[A] pts=%lld, dts=%lld \n", mapIndex->first, mapIndex->second);
+            //printf("[audio-%lld] pts=%lld, dts=%lld \n", tsSegment->tsStartTime, mapIndex->first, mapIndex->second);
         }
         mLastAudioDts = mapIndex->first;
         
         currentIndex++;
         mapIndex++;
     }
+
+    printf("[ %s ], video stream pts : %s , audio stream pts : %s \n", tsSegment->fileName.c_str(), videoStreamValidate ? "validate" : "invalidate!!", audioStreamValidate ? "validate" : "invalidate!!");
 
     printFrameDistance(mAudioFrameDistanceSets, "audio");
 }
@@ -153,9 +167,9 @@ void ParseredDataContainer::dispatchPackets(const std::list<TSDemux::STREAM_PKT*
 
 void ParseredDataContainer::printFrameDistance(std::set<int64_t> &Distances, std::string tag) {
     if (!Distances.empty()){
-        TSDemux::DBG(DEMUX_DBG_INFO, "%s frame distances size:%d ", tag.c_str(), Distances.size());
+        TSDemux::DBG(DEMUX_DBG_INFO, "%s frame duration count:%d ", tag.c_str(), Distances.size());
         for(std::set<int64_t>::iterator it = Distances.begin(); it != Distances.end(); it++) {
-            TSDemux::DBG(DEMUX_DBG_INFO, "  dis:%lld ", *it);
+            TSDemux::DBG(DEMUX_DBG_INFO, "  duration:%lld ", *it);
         }
         TSDemux::DBG(DEMUX_DBG_INFO, "\n");
     }
