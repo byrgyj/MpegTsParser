@@ -100,11 +100,15 @@ int main(int argc, char* argv[])
     } else if (strcmp(argv[i], "--ts_folder_path") == 0 && ++i < argc) {
         cmdLine.filePath = argv[i];
         cmdLine.filePath = regulateFilePath(cmdLine.filePath);
+    } else if (strcmp(argv[i], "--check_buffer_out") == 0){
+        cmdLine.checkPacketBufferOut = 1;
     }
     else {
       localFiles.push_back(argv[i]);
     }
   }
+
+  //cmdLine.filePath = "D:/data/8.6/test/";
 
   if (localFiles.empty() && cmdLine.filePath.empty()) {
       printf("should specify ts files \n");
@@ -147,7 +151,6 @@ int main(int argc, char* argv[])
         }
 
         if (file){
-            //printf("## process ts file: %s ##\n", curFile.c_str());
             TsLayer* demux = new TsLayer(file, channel, 0);
             if (demux != NULL) {
                 demux->doDemux();

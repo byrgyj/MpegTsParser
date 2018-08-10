@@ -2,6 +2,7 @@
 #include "ParserdDataContainer.h"
 #include "debug.h"
 #include "Tool.h"
+#include "CommandLine.h"
 
 namespace GYJ{
 
@@ -84,13 +85,17 @@ void ParseredDataContainer::printTimeStamp(const tsParam *tsSegment){
         if (mLastVideoPts != 0) {
             int64_t distance = mapIndex->first - mLastVideoPts;
             if (mVideoFrameDistanceSets.find(distance) == mVideoFrameDistanceSets.end()) {
-                TSDemux::DBG(DEMUX_DBG_INFO, "invalidate video pts is discontinuity, distance:%lld, cur_pts=%lld, cur_dts=%lld, pre_pts:%lld \n", distance, pts, dts, mLastVideoPts);
+                TSDemux::DBG(DEMUX_DBG_INFO, "video pts is discontinuity, distance:%lld, cur_pts=%lld, cur_dts=%lld, pre_pts:%lld \n", distance, pts, dts, mLastVideoPts);
                 videoStreamValidate = false;
             }
         }
 
-        if (mapIndex->first - mapIndex->second >= 90000) {
-            //TSDemux::DBG(DEMUX_DBG_INFO, "video pts:%lld - dts:%lld > 90000 \n", mapIndex->first, mapIndex->second);
+        int64_t distance = mapIndex->first - mapIndex->second;
+        if (distance >= 90000) {
+            TSDemux::DBG(DEMUX_DBG_INFO, "video pts:%lld - dts:%lld > 90000 \n", mapIndex->first, mapIndex->second);
+            if (CommandLine::getInstance()->getCommandLineParam().checkPacketBufferOut > 0){
+                printf("[V] pts(%lld)-dts(%lld)=%lld, out of range (90K)!!!! \n", mapIndex->first, mapIndex->second, distance);
+            }
         }
 
         if (checkCurrentPrint(currentIndex, packetCount)) {
@@ -112,7 +117,7 @@ void ParseredDataContainer::printTimeStamp(const tsParam *tsSegment){
     while (mapIndex != audioData.end()) {
         int64_t distance = mapIndex->first - mLastAudioDts;
         if (mLastAudioDts != 0 && mAudioFrameDistanceSets.find(distance) == mAudioFrameDistanceSets.end()) {
-            TSDemux::DBG(DEMUX_DBG_INFO, "invalidate audio pts is discontinuity, distance:%lld, cur pts:%lld, pre pts:%lld \n", distance,  mapIndex->first, mLastAudioDts);
+            TSDemux::DBG(DEMUX_DBG_INFO, "audio pts is discontinuity, distance:%lld, cur pts:%lld, pre pts:%lld \n", distance,  mapIndex->first, mLastAudioDts);
             audioStreamValidate = false;
         }
 
