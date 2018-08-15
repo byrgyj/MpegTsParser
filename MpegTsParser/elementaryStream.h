@@ -75,15 +75,24 @@ namespace TSDemux
     bool                  interlaced;
   };
 
+  struct TS_PCR {
+      TS_PCR() : pcr(0), pcr_base(0), pcr_ext(0) {}
+      uint64_t pcr;
+      uint64_t pcr_base;
+      uint64_t pcr_ext;
+  };
+
   struct STREAM_PKT
   {
     uint16_t              pid;
+    uint16_t              slice_type;
     size_t                size;
     const unsigned char*  data;
     uint64_t              dts;
     uint64_t              pts;
     uint64_t              duration;
     bool                  streamChange;
+    TS_PCR                pcr;
   };
 
   class ElementaryStream

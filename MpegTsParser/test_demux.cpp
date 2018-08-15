@@ -102,8 +102,9 @@ int main(int argc, char* argv[])
         cmdLine.filePath = regulateFilePath(cmdLine.filePath);
     } else if (strcmp(argv[i], "--check_buffer_out") == 0){
         cmdLine.checkPacketBufferOut = 1;
-    }
-    else {
+    } else if (strcmp(argv[i], "--print_pcr") == 0) {
+        cmdLine.printPcr = 1;
+    } else {
       localFiles.push_back(argv[i]);
     }
   }

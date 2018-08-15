@@ -3,11 +3,12 @@
 #include "ParserdDataContainer.h"
 namespace GYJ {
 typedef struct CommandLineParam {
-    CommandLineParam() : printMediaType(PRINT_MEDIA_ALL), printPtsType(PRINT_PARTLY_PTS), checkPacketBufferOut(0) {}
+    CommandLineParam() : printMediaType(PRINT_MEDIA_ALL), printPtsType(PRINT_PARTLY_PTS), checkPacketBufferOut(0), printPcr(0) {}
     int printMediaType;
     int printPtsType;
     int checkPtsDtsDistance;
     int checkPacketBufferOut;
+    int printPcr;
 
     std::string filePath;
 } CommandLineParam;

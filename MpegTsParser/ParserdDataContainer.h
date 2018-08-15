@@ -37,10 +37,18 @@ private:
     bool isEnableVideoPrint();
     bool isEnableAudioPrint();
     bool checkCurrentPrint(int audioIndex, int audioCount);
+    bool checkPrintPcr(int currentIndex, int totalPkt);
 
     void printTimeStamp(const tsParam *tsSegment);
-    void dispatchPackets(const std::list<TSDemux::STREAM_PKT*> *lst, std::map<int64_t, int64_t> &videoPackets, std::map<int64_t, int64_t> &audioPackets);
+    void dispatchPackets(const std::list<TSDemux::STREAM_PKT*> *lst);
     void printFrameDistance(std::set<int64_t> &Distances, std::string tag);
+
+    void processVideo();
+    void processAudio();
+    void processPCR();
+    bool isPcrValidate(int64_t prePcr, int64_t curPcr);
+    const char *pcrToTime(int64_t pcr);
+    int roundDouble(double number);
 private:
 
     std::map<int64_t, std::list<TSDemux::STREAM_PKT*>*> mParserdData;
@@ -56,6 +64,13 @@ private:
     int64_t mLastAudioDts;
     int64_t mLastVideoDts;
     int64_t mLastVideoPts;
+    uint64_t mLastPCR;
+    char mTimeBuffer[128];
+
+    typedef std::map<int64_t, TSDemux::STREAM_PKT*>::iterator mapIndex;
+    std::map<int64_t, TSDemux::STREAM_PKT*> mVideoData;
+    std::map<int64_t, TSDemux::STREAM_PKT*> mAudioData;
+    std::map<int64_t, TSDemux::STREAM_PKT*> mPcrData;
 };
 
 }

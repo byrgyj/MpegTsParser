@@ -61,6 +61,7 @@ namespace TSDemux
         int nal_unit_type;
         int nal_ref_idc; // start code
         int pic_order_cnt_type; // sps
+        int slice_type;
       } vcl_nal;
 
     } h264_private_t;

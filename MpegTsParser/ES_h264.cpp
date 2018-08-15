@@ -114,6 +114,7 @@ void ES_h264::Parse(STREAM_PKT* pkt)
       }
 
       pkt->pid            = pid;
+      pkt->slice_type     = m_streamData.vcl_nal.slice_type;
       pkt->size           = es_consumed - frame_ptr;
       pkt->data           = &es_buf[frame_ptr];
       pkt->dts            = m_DTS;
@@ -298,13 +299,14 @@ bool ES_h264::Parse_SLH(uint8_t *buf, int len, h264_private::VCL_NAL &vcl)
   if (slice_type > 4)
     slice_type -= 5;  /* Fixed slice type per frame */
 
+  vcl.slice_type = slice_type;
   switch (slice_type)
   {
-  case 0:
+  case 0: // P
     break;
-  case 1:
+  case 1: // B
     break;
-  case 2:
+  case 2: // I
     m_NeedIFrame = false;
     break;
   default:

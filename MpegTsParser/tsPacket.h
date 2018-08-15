@@ -69,6 +69,7 @@ namespace TSDemux
     uint8_t continuity;
     PACKET_TYPE packet_type;
     uint16_t channel;
+    TS_PCR pcr; 
     bool wait_unit_start;
     bool has_stream_data;
     bool streaming;

@@ -75,6 +75,7 @@ namespace TSDemux
     uint16_t GetChannel(uint16_t pid) const;
     void ResetPackets();
 
+    const Packet *getCurrentPacket() { return mCurrentPkt; }
     std::list<TSDemux::STREAM_PKT*> *getMediaPkts() { return mMediaPkts; }
 
     // TS parser

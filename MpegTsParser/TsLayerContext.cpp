@@ -406,6 +406,7 @@ int TsLayerContext::ProcessTSPacket()
   bool is_discontinuity = false;
   uint8_t continuity_counter = flags & 0x0f;
   bool has_adaptation = (flags & 0x20) != 0;
+  TS_PCR pcr;
   size_t n = 0;
   if (has_adaptation) {
     size_t len = (size_t)av_rb8(av_buf + 4);
@@ -420,6 +421,13 @@ int TsLayerContext::ProcessTSPacket()
     n = len + 1;
     if (len > 0)
     {
+        if ((av_buf[5] >> 4) & 0x1) {
+            int64_t pcr_high = av_rb16(av_buf + 6) << 16 | av_rb16(av_buf + 8);
+            pcr.pcr_base = (pcr_high << 1) | (av_buf[10] >> 7);
+            pcr.pcr_ext = ((av_buf[10] & 1) << 8) | av_buf[11];
+            pcr.pcr = pcr.pcr_base * 300 + pcr.pcr_ext;
+        }
+
       is_discontinuity = (av_rb8(av_buf + 5) & 0x80) != 0;
     }
   }
@@ -477,6 +485,7 @@ int TsLayerContext::ProcessTSPacket()
   this->discontinuity |= is_discontinuity;
   mHasPayload = is_payload;
   mCurrentPkt = &(it->second);
+  mCurrentPkt->pcr = pcr;
 
   // It is time to stream data for PES
   if (this->payload_unit_start &&
@@ -858,6 +867,7 @@ int TsLayerContext::parse_ts_pes()
 
     curPkt->dts = mCurrentPkt->stream->c_dts;
     curPkt->pts = mCurrentPkt->stream->c_pts;
+    curPkt->pcr = mCurrentPkt->pcr;
 
     if (curPkt->pid == mVideoPid) {
         mVideoPktCount++;
