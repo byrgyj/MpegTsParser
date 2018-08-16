@@ -95,33 +95,35 @@ int TsLayer::doDemux(){
             break;
         }
 
-        ret = mTsContext->ProcessTSPacket();
-        indexCount++;
-        if (mTsContext->HasPIDStreamData()){
-            TSDemux::STREAM_PKT pkt;
-            while (getStreamData(&pkt)){
-                //if (pkt->streamChange)
-                //ShowStraemInfo(pkt->pid);
-                //WriteStreamData(pkt)
-            }
-        }
-        if (mTsContext->HasPIDPayload()){
-            ret = mTsContext->ProcessTSPayload();
-            if (ret == TSDemux::AVCONTEXT_PROGRAM_CHANGE) {
-                registerPMT();
-                //std::vector<TSDemux::ElementaryStream*> streams = m_AVContext->GetStreams();
-            }
-        }
-
-        if (ret < 0) {
+        TSDemux::TsPacket *pkt = mTsContext->parserTsPacket();
+        if (pkt->payloadUnitStart && pkt->tsType == TSDemux::PACKET_TYPE_PES) {
             
         }
-
-        if (ret == TSDemux::AVCONTEXT_TS_ERROR) {
-            mTsContext->Shift();
-        } else {
-            mTsContext->goNext();
-        }
+        mTsContext->goNext();
+        indexCount++;
+//         ret = mTsContext->ProcessTSPacket();
+//         
+//         if (mTsContext->HasPIDStreamData()){
+//             TSDemux::STREAM_PKT pkt;
+//             while (getStreamData(&pkt)){
+//                 //if (pkt->streamChange)
+//                 //ShowStraemInfo(pkt->pid);
+//                 //WriteStreamData(pkt)
+//             }
+//         }
+//         if (mTsContext->HasPIDPayload()){
+//             ret = mTsContext->ProcessTSPayload();
+//             if (ret == TSDemux::AVCONTEXT_PROGRAM_CHANGE) {
+//                 registerPMT();
+//                 //std::vector<TSDemux::ElementaryStream*> streams = m_AVContext->GetStreams();
+//             }
+//         }
+// 
+//         if (ret == TSDemux::AVCONTEXT_TS_ERROR) {
+//             mTsContext->Shift();
+//         } else {
+//             mTsContext->goNext();
+//         }
     }
 
     return ret;

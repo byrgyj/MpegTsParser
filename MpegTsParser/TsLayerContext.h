@@ -58,6 +58,20 @@ namespace TSDemux
     AVCONTEXT_DISCONTINUITY       = 3
   };
 
+  struct TsPacket {
+      int pid;
+      bool transportError;
+      bool payloadUnitStart;
+      bool hasPayload;
+      bool hasAdaptation;
+      uint8_t payload_counter;
+      int32_t payloadLength;
+      TS_PCR pcr;
+      PACKET_TYPE tsType;
+      uint8_t *payload;
+  };
+
+
   class TsLayerContext
   {
   public:
@@ -84,6 +98,12 @@ namespace TSDemux
     uint64_t Shift();
     void GoPosition(uint64_t pos);
     uint64_t GetPosition() const;
+
+    TSDemux::TsPacket *parserTsPacket();
+    int parserTsPayload();
+    int parsePATSection(const uint8_t *data, int dataLength);
+    int parsePMTSection(const uint8_t *data, int dataLength);
+
     int ProcessTSPacket();
     int ProcessTSPayload();
 
@@ -117,14 +137,17 @@ namespace TSDemux
     int mAudioPktCount;
     int mVideoPid;
     int mAudioPid;
+    int mPmtPid;
+
+    std::list<TsPacket*> mMediaDatas;
 
     int mFileIndex;
 
     // Raw packet buffer
     uint64_t av_pos;
-    size_t av_data_len;
+    size_t mAvDataLen;
     size_t av_pkt_size;
-    unsigned char av_buf[AV_CONTEXT_PACKETSIZE];
+    unsigned char mTsPktBuffer[AV_CONTEXT_PACKETSIZE];
 
     // TS Streams context
     bool is_configured;
@@ -137,10 +160,10 @@ namespace TSDemux
     uint16_t pid;
     bool transport_error;
     bool mHasPayload;
-    bool payload_unit_start;
+    bool mPayloadUnitStart;
     bool discontinuity;
     const unsigned char *mTsPayload;
-    size_t payload_len;
+    size_t mPayloadLen;
     Packet* mCurrentPkt;
   };
 }

@@ -38,17 +38,17 @@ using namespace TSDemux;
 
 TsLayerContext::TsLayerContext(TSDemuxer* const demux, uint64_t pos, uint16_t channel, int fileIndex)
   : av_pos(pos)
-  , av_data_len(FLUTS_NORMAL_TS_PACKETSIZE)
+  , mAvDataLen(FLUTS_NORMAL_TS_PACKETSIZE)
   , av_pkt_size(0)
   , is_configured(false)
   , channel(channel)
   , pid(0xffff)
   , transport_error(false)
   , mHasPayload(false)
-  , payload_unit_start(false)
+  , mPayloadUnitStart(false)
   , discontinuity(false)
   , mTsPayload(NULL)
-  , payload_len(0)
+  , mPayloadLen(0)
   , mCurrentPkt(NULL)
   , mVideoPktCount(0)
   , mAudioPktCount(0)
@@ -56,9 +56,10 @@ TsLayerContext::TsLayerContext(TSDemuxer* const demux, uint64_t pos, uint16_t ch
   , mAudioPid(0)
   , mFileIndex(fileIndex)
   , mTsStartTimeStamp(-1)
+  , mPmtPid(0)
 {
   m_demux = demux;
-  memset(av_buf, 0, sizeof(av_buf));
+  memset(mTsPktBuffer, 0, sizeof(mTsPktBuffer));
 
   mMediaPkts = new std::list<TSDemux::STREAM_PKT*>;
 };
@@ -70,10 +71,10 @@ void TsLayerContext::Reset(void)
   pid = 0xffff;
   transport_error = false;
   mHasPayload = false;
-  payload_unit_start = false;
+  mPayloadUnitStart = false;
   discontinuity = false;
   mTsPayload = NULL;
-  payload_len = 0;
+  mPayloadLen = 0;
   mCurrentPkt = NULL;
 }
 
@@ -319,7 +320,7 @@ int TsLayerContext::tsSync(){
       return AVCONTEXT_IO_ERROR;
     if (data[0] == 0x47)
     {
-      memcpy(av_buf, data, av_pkt_size);
+      memcpy(mTsPktBuffer, data, av_pkt_size);
       Reset();
       return AVCONTEXT_CONTINUE;
     }
@@ -352,6 +353,129 @@ uint64_t TsLayerContext::GetPosition() const
   return av_pos;
 }
 
+TsPacket *TsLayerContext::parserTsPacket() {
+    int ret = AVCONTEXT_CONTINUE;
+    std::map<uint16_t, Packet>::iterator it;
+    if (av_rb8(mTsPktBuffer) != 0x47){
+        return NULL;
+    }
+
+
+
+    int pid  = av_rb16(mTsPktBuffer + 1) & 0x1FFF;
+    bool transportError = (av_rb16(mTsPktBuffer + 1) & 0x8000) != 0;
+    if (transportError) {
+        return NULL;
+    }
+
+    if (pid == 0x1FFF) { // empty ts packet
+        return NULL;
+    }
+
+    TsPacket *tsPkt = new TsPacket;
+    tsPkt->pid = pid;
+    tsPkt->transportError = transportError;
+    tsPkt->payloadUnitStart = (av_rb16(mTsPktBuffer + 1) & 0x4000) != 0;
+
+    // Cleaning context
+    discontinuity = false;
+    mHasPayload = false;
+    mTsPayload = NULL;
+    mPayloadLen = 0;
+
+    uint8_t flags = av_rb8(mTsPktBuffer + 3);
+    tsPkt->hasPayload = (flags & 0x10) != 0;
+    bool is_discontinuity = false;
+    tsPkt->payload_counter = flags & 0x0F;
+    tsPkt->hasAdaptation = (flags & 0x20) != 0;
+
+    size_t n = 0;
+    if (tsPkt->hasAdaptation) {
+        size_t len = (size_t)av_rb8(mTsPktBuffer + 4);
+        if (len > (mAvDataLen - 5)){
+            return NULL;
+        }
+        
+        n = len + 1;
+        if (len > 0)
+        {
+            if ((mTsPktBuffer[5] >> 4) & 0x1) { // PCR flag
+                int64_t pcr_high = av_rb16(mTsPktBuffer + 6) << 16 | av_rb16(mTsPktBuffer + 8);
+                tsPkt->pcr.pcr_base = (pcr_high << 1) | (mTsPktBuffer[10] >> 7);
+                tsPkt->pcr.pcr_ext = ((mTsPktBuffer[10] & 1) << 8) | mTsPktBuffer[11];
+                tsPkt->pcr.pcr = tsPkt->pcr.pcr_base * 300 + tsPkt->pcr.pcr_ext;
+            }
+
+            is_discontinuity = (av_rb8(mTsPktBuffer + 5) & 0x80) != 0;
+        }
+    }
+
+    if (tsPkt->hasPayload) {
+        tsPkt->payloadLength = mAvDataLen - n - 4;
+        tsPkt->payload = new uint8_t[tsPkt->payloadLength];
+        memcpy(tsPkt->payload, mTsPktBuffer + n + 4, tsPkt->payloadLength);
+    }
+
+
+    if (tsPkt->pid == 0) {
+        tsPkt->tsType = PACKET_TYPE_PSI;
+        parsePATSection(tsPkt->payload + 1, tsPkt->payloadLength - 1);
+    } else if (tsPkt->pid == mPmtPid) {
+        parsePMTSection(tsPkt->payload + 1, tsPkt->payloadLength - 1);
+    } else if (tsPkt->pid == mVideoPid || tsPkt->pid == mAudioPid) {
+        mMediaDatas.push_back(tsPkt);
+    }
+   
+    return tsPkt;
+}
+
+int TsLayerContext::parserTsPayload() {
+    return 0;
+}
+
+int TsLayerContext::parsePATSection(const uint8_t *data, int dataLength) {
+    if (data == NULL || dataLength == 0) {
+        return -1;
+    }
+
+    const uint8_t *dataEnd = data + dataLength;
+  
+    uint8_t tableId = av_rb8(data);
+    int sectionLength = (data[1] & 0x0F) << 8 | data[2];
+
+    for (int i = 0; i < sectionLength  - 12; i+=4) {
+        int programNum = data[8 + i] << 8 | data[9 + i];
+        if (programNum == 0) {
+
+        } else {
+            mPmtPid = (data[10 + i] & 0x1F) << 8 | data[11 + i];
+        }
+    }
+    return 0;
+}
+
+int TsLayerContext::parsePMTSection(const uint8_t *data, int dataLength) {
+    uint8_t tableId = av_rb8(data);
+     int sectionLength = (data[1] & 0x0F) << 8 | data[2];
+     int programInfoLength = (data[10] & 0x0F) << 8 | data[11];
+
+     int index = 12 + programInfoLength;
+     for ( ; index <= (sectionLength + 2 ) -  4; ) {
+         int type = get_stream_type(data[index]);
+         int32_t pid = ((data[index+1] << 8) | data[index+2]) & 0x1FFF;
+         if (type == STREAM_TYPE_AUDIO_AAC) {
+             mAudioPid = pid;
+         } else if (type == STREAM_TYPE_VIDEO_H264 || type == STREAM_TYPE_VIDEO_HEVC) {
+             mVideoPid = pid;
+         }
+
+         index += 5;
+     }
+
+     return 0;
+}
+
+
 /*
  * Process TS packet
  *
@@ -381,27 +505,30 @@ int TsLayerContext::ProcessTSPacket()
   int ret = AVCONTEXT_CONTINUE;
   std::map<uint16_t, Packet>::iterator it;
 
-  if (av_rb8(av_buf) != 0x47){
+  if (av_rb8(mTsPktBuffer) != 0x47){
     return AVCONTEXT_TS_NOSYNC;
   }
 
-  uint16_t header = av_rb16(av_buf + 1);
+  uint16_t header = av_rb16(mTsPktBuffer + 1);
   pid = header & 0x1fff;
   transport_error = (header & 0x8000) != 0;
-  payload_unit_start = (header & 0x4000) != 0;
+  mPayloadUnitStart = (header & 0x4000) != 0;
   // Cleaning context
   discontinuity = false;
   mHasPayload = false;
   mTsPayload = NULL;
-  payload_len = 0;
+  mPayloadLen = 0;
 
-  if (transport_error)
+  if (transport_error) {
     return AVCONTEXT_CONTINUE;
+  }
+  
   // Null packet
-  if (pid == 0x1fff)
+  if (pid == 0x1fff) {
     return AVCONTEXT_CONTINUE;
+  }
 
-  uint8_t flags = av_rb8(av_buf + 3);
+  uint8_t flags = av_rb8(mTsPktBuffer + 3);
   bool is_payload = (flags & 0x10) != 0;
   bool is_discontinuity = false;
   uint8_t continuity_counter = flags & 0x0f;
@@ -409,8 +536,8 @@ int TsLayerContext::ProcessTSPacket()
   TS_PCR pcr;
   size_t n = 0;
   if (has_adaptation) {
-    size_t len = (size_t)av_rb8(av_buf + 4);
-    if (len > (av_data_len - 5))
+    size_t len = (size_t)av_rb8(mTsPktBuffer + 4);
+    if (len > (mAvDataLen - 5))
     {
 #if defined(TSDEMUX_DEBUG)
       assert(false);
@@ -421,28 +548,28 @@ int TsLayerContext::ProcessTSPacket()
     n = len + 1;
     if (len > 0)
     {
-        if ((av_buf[5] >> 4) & 0x1) {
-            int64_t pcr_high = av_rb16(av_buf + 6) << 16 | av_rb16(av_buf + 8);
-            pcr.pcr_base = (pcr_high << 1) | (av_buf[10] >> 7);
-            pcr.pcr_ext = ((av_buf[10] & 1) << 8) | av_buf[11];
+        if ((mTsPktBuffer[5] >> 4) & 0x1) { // PCR flag
+            int64_t pcr_high = av_rb16(mTsPktBuffer + 6) << 16 | av_rb16(mTsPktBuffer + 8);
+            pcr.pcr_base = (pcr_high << 1) | (mTsPktBuffer[10] >> 7);
+            pcr.pcr_ext = ((mTsPktBuffer[10] & 1) << 8) | mTsPktBuffer[11];
             pcr.pcr = pcr.pcr_base * 300 + pcr.pcr_ext;
         }
 
-      is_discontinuity = (av_rb8(av_buf + 5) & 0x80) != 0;
+      is_discontinuity = (av_rb8(mTsPktBuffer + 5) & 0x80) != 0;
     }
   }
   if (is_payload)
   {
     // Payload start after adaptation fields
-    mTsPayload = av_buf + n + 4;
-    payload_len = av_data_len - n - 4;
+    mTsPayload = mTsPktBuffer + n + 4;
+    mPayloadLen = mAvDataLen - n - 4;
   }
 
   it = mTsTypePkts.find(pid);
   if (it == mTsTypePkts.end()){
     // Not registred PID
     // We are waiting for unit start of PID 0 else next packet is required
-    if (pid == 0 && payload_unit_start)
+    if (pid == 0 && mPayloadUnitStart)
     {
       // Registering PID 0
       Packet pid0;
@@ -456,7 +583,7 @@ int TsLayerContext::ProcessTSPacket()
   } else {
     // PID is registred
     // Checking unit start is required
-    if (it->second.wait_unit_start && !payload_unit_start)
+    if (it->second.wait_unit_start && !mPayloadUnitStart)
     {
       // Not unit start. Save packet flow continuity...
       it->second.continuity = continuity_counter;
@@ -471,7 +598,7 @@ int TsLayerContext::ProcessTSPacket()
       {
         this->discontinuity = true;
         // If unit is not start then reset PID and wait the next unit start
-        if (!this->payload_unit_start)
+        if (!mPayloadUnitStart)
         {
           it->second.Reset();
           DBG(DEMUX_DBG_WARN, "PID %.4x discontinuity detected: found %u, expected %u\n", this->pid, continuity_counter, expected_cc);
@@ -488,12 +615,12 @@ int TsLayerContext::ProcessTSPacket()
   mCurrentPkt->pcr = pcr;
 
   // It is time to stream data for PES
-  if (this->payload_unit_start &&
-          this->mCurrentPkt->streaming &&
-          this->mCurrentPkt->packet_type == PACKET_TYPE_PES &&
-          !this->mCurrentPkt->wait_unit_start)
+  if (mPayloadUnitStart &&
+          mCurrentPkt->streaming &&
+          mCurrentPkt->packet_type == PACKET_TYPE_PES &&
+          !mCurrentPkt->wait_unit_start)
   {
-    this->mCurrentPkt->has_stream_data = true;
+    mCurrentPkt->has_stream_data = true;
     ret = AVCONTEXT_STREAM_PID_DATA;
   }
   return ret;
@@ -577,15 +704,15 @@ int TsLayerContext::parse_ts_psi()
 {
   size_t len;
 
-  if (!mHasPayload || !mTsPayload || !this->payload_len || !mCurrentPkt)
+  if (!mHasPayload || !mTsPayload || !mPayloadLen || !mCurrentPkt)
     return AVCONTEXT_CONTINUE;
 
-  if (this->payload_unit_start){
+  if (mPayloadUnitStart){
     // Reset wait for unit start
     mCurrentPkt->wait_unit_start = false;
     // pointer field present
     len = (size_t)av_rb8(mTsPayload);
-    if (len > this->payload_len)
+    if (len > mPayloadLen)
     {
 #if defined(TSDEMUX_DEBUG)
       assert(false);
@@ -611,7 +738,7 @@ int TsLayerContext::parse_ts_psi()
 
     mCurrentPkt->packet_table.Reset();
 
-    size_t n = this->payload_len - 4;
+    size_t n = mPayloadLen - 4;
     memcpy(mCurrentPkt->packet_table.buf, mTsPayload + 4, n);
     mCurrentPkt->packet_table.table_id = table_id;
     mCurrentPkt->packet_table.offset = n;
@@ -630,7 +757,7 @@ int TsLayerContext::parse_ts_psi()
 #endif
     }
 
-    if ((this->payload_len + mCurrentPkt->packet_table.offset) > TABLE_BUFFER_SIZE)
+    if ((mPayloadLen + mCurrentPkt->packet_table.offset) > TABLE_BUFFER_SIZE)
     {
 #if defined(TSDEMUX_DEBUG)
       assert(false);
@@ -638,8 +765,8 @@ int TsLayerContext::parse_ts_psi()
       return AVCONTEXT_TS_ERROR;
 #endif
     }
-    memcpy(mCurrentPkt->packet_table.buf + mCurrentPkt->packet_table.offset, mTsPayload, this->payload_len);
-    mCurrentPkt->packet_table.offset += this->payload_len;
+    memcpy(mCurrentPkt->packet_table.buf + mCurrentPkt->packet_table.offset, mTsPayload, mPayloadLen);
+    mCurrentPkt->packet_table.offset += mPayloadLen;
     // check for incomplete section
     if (mCurrentPkt->packet_table.offset < mCurrentPkt->packet_table.len)
       return AVCONTEXT_CONTINUE;
@@ -750,13 +877,13 @@ STREAM_INFO TsLayerContext::parse_pes_descriptor(const unsigned char* p, size_t 
  */
 int TsLayerContext::parse_ts_pes()
 {
-  if (!mHasPayload|| !mTsPayload || !this->payload_len || !mCurrentPkt)
+  if (!mHasPayload|| !mTsPayload || !mPayloadLen || !mCurrentPkt)
     return AVCONTEXT_CONTINUE;
 
   if (!mCurrentPkt->stream)
     return AVCONTEXT_CONTINUE;
 
-  if (this->payload_unit_start)
+  if (mPayloadUnitStart)
   {
     // Wait for unit start: Reset frame buffer to clear old data
     if (mCurrentPkt->wait_unit_start)
@@ -778,13 +905,13 @@ int TsLayerContext::parse_ts_pes()
 
   while (mCurrentPkt->packet_table.offset < mCurrentPkt->packet_table.len)
   {
-    if (pos >= this->payload_len)
+    if (pos >= mPayloadLen)
       return AVCONTEXT_CONTINUE;
 
     size_t n = mCurrentPkt->packet_table.len - mCurrentPkt->packet_table.offset;
 
-    if (n > (this->payload_len - pos))
-      n = this->payload_len - pos;
+    if (n > (mPayloadLen - pos))
+      n = mPayloadLen - pos;
 
     memcpy(mCurrentPkt->packet_table.buf + mCurrentPkt->packet_table.offset, mTsPayload + pos, n);
     mCurrentPkt->packet_table.offset += n;
@@ -843,14 +970,6 @@ int TsLayerContext::parse_ts_pes()
           uint64_t dts = decode_pts(mCurrentPkt->packet_table.buf + 14);
           int64_t d = (pts - dts) & PTS_MASK;
           // more than two seconds of PTS/DTS delta, probably corrupt
-//           if(d > 90000){
-//             mCurrentPkt->stream->c_dts = mCurrentPkt->stream->c_pts = PTS_UNSET;
-//           } else {
-//             mCurrentPkt->stream->p_dts = mCurrentPkt->stream->c_dts;
-//             mCurrentPkt->stream->p_pts = mCurrentPkt->stream->c_pts;
-//             mCurrentPkt->stream->c_dts = dts;
-//             mCurrentPkt->stream->c_pts = pts;
-//           }
           mCurrentPkt->stream->p_dts = mCurrentPkt->stream->c_dts;
           mCurrentPkt->stream->p_pts = mCurrentPkt->stream->c_pts;
           mCurrentPkt->stream->c_dts = dts;
@@ -885,7 +1004,7 @@ int TsLayerContext::parse_ts_pes()
   if (mCurrentPkt->streaming)
   {
     const unsigned char* data = mTsPayload + pos;
-    size_t len = this->payload_len - pos;
+    size_t len = mPayloadLen - pos;
     mCurrentPkt->stream->Append(data, len, has_pts);
   }
 
@@ -941,10 +1060,6 @@ int TsLayerContext::parsePat(const unsigned char *data, const unsigned char *dat
     {
         uint16_t channel = av_rb16(data);
         uint16_t pmt_pid = av_rb16(data + 2);
-
-        // Reserved fields in table sections must be "set" to '1' bits.
-        //if ((pmt_pid & 0xe000) != 0xe000)
-        //  return AVCONTEXT_TS_ERROR;
 
         pmt_pid &= 0x1fff;
 
@@ -1043,26 +1158,26 @@ int TsLayerContext::parsePmt(const unsigned char *data, const unsigned char *dat
             {
             case STREAM_TYPE_VIDEO_MPEG1:
             case STREAM_TYPE_VIDEO_MPEG2:
-                mVideoPid = pes_pid;
+                //mVideoPid = pes_pid;
                 es = new ES_MPEG2Video(pes_pid);
                 break;
             case STREAM_TYPE_AUDIO_MPEG1:
             case STREAM_TYPE_AUDIO_MPEG2:
-                mAudioPid = pes_pid;
+                //mAudioPid = pes_pid;
                 es = new ES_MPEG2Audio(pes_pid);
                 break;
             case STREAM_TYPE_AUDIO_AAC:
             case STREAM_TYPE_AUDIO_AAC_ADTS:
             case STREAM_TYPE_AUDIO_AAC_LATM:
-                mAudioPid = pes_pid;
+                //mAudioPid = pes_pid;
                 es = new ES_AAC(pes_pid);
                 break;
             case STREAM_TYPE_VIDEO_H264:
-                mVideoPid = pes_pid;
+                //mVideoPid = pes_pid;
                 es = new ES_h264(pes_pid);
                 break;
             case STREAM_TYPE_VIDEO_HEVC:
-                mVideoPid = pes_pid;
+                //mVideoPid = pes_pid;
                 es = new ES_hevc(pes_pid);
                 break;
             case STREAM_TYPE_AUDIO_AC3:
