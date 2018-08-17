@@ -121,42 +121,46 @@ ES_AC3::~ES_AC3()
 {
 }
 
-void ES_AC3::Parse(STREAM_PKT* pkt)
-{
+int64_t ES_AC3::parse(const TsPacket *pkt){
+  int frameCount = 0;
+  int64_t frameDuration = 0;
   int p = es_parsed;
   int l;
   while ((l = es_len - p) > 8)
   {
-    if (FindHeaders(es_buf + p, l) < 0)
-      break;
-    p++;
+      if (FindHeaders(es_buf + p, l) < 0){
+          frameCount++;
+          p += m_FrameSize;
+      } else {
+          p++;
+      }
   }
   es_parsed = p;
+
+  frameDuration = frameCount * 90000 * 1536 / m_SampleRate;
 
   if (es_found_frame && l >= m_FrameSize)
   {
     bool streamChange = SetAudioInformation(m_Channels, m_SampleRate, m_BitRate, 0, 0);
-    pkt->pid            = pid;
-    pkt->data           = &es_buf[p];
-    pkt->size           = m_FrameSize;
-    pkt->duration       = 90000 * 1536 / m_SampleRate;
-    pkt->dts            = m_DTS;
-    pkt->pts            = m_PTS;
-    pkt->streamChange   = streamChange;
+
+    //pkt->duration       = 90000 * 1536 / m_SampleRate;
+
 
     es_consumed = p + m_FrameSize;
     es_parsed = es_consumed;
     es_found_frame = false;
   }
+
+  return frameDuration;
 }
 
 int ES_AC3::FindHeaders(uint8_t *buf, int buf_size)
 {
-  if (es_found_frame)
-    return -1;
+//   if (es_found_frame)
+//     return -1;
 
-  if (buf_size < 9)
-    return -1;
+//   if (buf_size < 9)
+//     return -1;
 
   uint8_t *buf_ptr = buf;
 
@@ -166,11 +170,11 @@ int ES_AC3::FindHeaders(uint8_t *buf, int buf_size)
 
     // read ahead to bsid to distinguish between AC-3 and E-AC-3
     int bsid = bs.showBits(29) & 0x1F;
-    if (bsid > 16)
+    if (bsid > 16){
       return 0;
+    }
 
-    if (bsid <= 10)
-    {
+    if (bsid <= 10){
       // Normal AC-3
       bs.skipBits(16);
       int fscod       = bs.readBits(2);

@@ -156,30 +156,24 @@ void ParseredDataContainer::processAudio() {
             continue;
         }
 
-        int64_t distance = it->first - mLastAudioDts;
-//         if (mLastAudioDts != 0 && mAudioFrameDistanceSets.find(distance) == mAudioFrameDistanceSets.end()) {
-//             TSDemux::DBG(DEMUX_DBG_INFO, "audio pts is discontinuity, distance:%lld, cur pts:%lld, pre pts:%lld \n", distance,  it->first, mLastAudioDts);
-//             audioStreamValidate = false;
-//         }
-        uint64_t dis = fabs((double)packet->dts - mLastAudioDts - packet->duration);
-        if (mLastAudioDts != 0 && dis > 1){
+        int64_t distance = packet->dts - mLastAudioDts - mLastAudioDuration;
+        //uint64_t dis = fabs((double)distance - mLastAudioDuration);
+        if (mLastAudioDts != 0 && distance > 1){
             TSDemux::DBG(DEMUX_DBG_INFO, "audio pts is discontinuity, distance:%lld, cur pts:%lld, pre pts:%lld \n", distance,  it->first, mLastAudioDts);
             audioStreamValidate = false;
         }
 
         if (checkCurrentPrint(currentIndex, packetCount)) {
             TSDemux::DBG(DEMUX_DBG_INFO, "[A] pts=%lld, dts=%lld, next pts:%lld \n", it->first, packet->dts, packet->dts + packet->duration);
-            //printf("[audio-%lld] pts=%lld, dts=%lld \n", tsSegment->tsStartTime, mapIndex->first, mapIndex->second);
         }
         mLastAudioDts = it->first;
-
+        mLastAudioDuration = packet->duration;
         currentIndex++;
         it++;
         delete packet;
     }
 
     printf("audio stream pts : %s \n",  audioStreamValidate ? "validate" : "invalidate!!");
-    printFrameDistance(mAudioFrameDistanceSets, "audio");
 }
 
 void ParseredDataContainer::processPCR() {
@@ -251,12 +245,6 @@ void ParseredDataContainer::dispatchPackets(const std::list<TSDemux::STREAM_PKT*
             }
             preVideoDts = pkt->dts;
         } else if (isEnableAudioPrint() && pkt->pid == mAudioPid) {
-            if (preAudioDts != -1) {
-                int64_t aDistance = pkt->dts - preAudioDts;
-                if (mAudioFrameDistanceSets.find(aDistance) == mAudioFrameDistanceSets.end()) {
-                    mAudioFrameDistanceSets.insert(aDistance);
-                }
-            }
             mAudioData.insert(std::make_pair(pkt->pts, pkt));
             preAudioDts = pkt->dts;
         }

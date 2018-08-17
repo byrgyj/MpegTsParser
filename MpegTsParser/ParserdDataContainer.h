@@ -54,7 +54,6 @@ private:
     std::map<int64_t, std::list<TSDemux::STREAM_PKT*>*> mParserdData;
     std::map<int64_t, const tsParam*> mTsSegments;
     std::set<int64_t> mVideoFrameDistanceSets;
-    std::set<int64_t> mAudioFrameDistanceSets;
 
     printParam mPrintParam;
 
@@ -62,6 +61,8 @@ private:
     int mAudioPid;
     int mCurrentTsSegmentIndex;
     int64_t mLastAudioDts;
+    int64_t mLastAudioDuration;
+
     int64_t mLastVideoDts;
     int64_t mLastVideoPts;
     uint64_t mLastPCR;

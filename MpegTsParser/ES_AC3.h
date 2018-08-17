@@ -42,7 +42,7 @@ namespace TSDemux
     ES_AC3(uint16_t pid);
     virtual ~ES_AC3();
 
-    virtual void Parse(STREAM_PKT* pkt);
+    virtual int64_t parse(const TsPacket *pkt);
     virtual void Reset();
   };
 }

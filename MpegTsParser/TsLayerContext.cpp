@@ -447,17 +447,15 @@ int TsLayerContext::parsePMTSection(const uint8_t *data, int dataLength) {
      for ( ; index <= (sectionLength + 2 ) -  4; ) {
          STREAM_TYPE type = get_stream_type(data[index]);
          int32_t pid = ((data[index+1] << 8) | data[index+2]) & 0x1FFF;
-         if (type == STREAM_TYPE_AUDIO_AAC) {
+         if (type == STREAM_TYPE_AUDIO_AAC || type == STREAM_TYPE_AUDIO_EAC3 || type == STREAM_TYPE_AUDIO_AC3) {
              mAudioPid = pid;
               mMediaStream[1] = createElementaryStream(type, pid);
          } else if (type == STREAM_TYPE_VIDEO_H264 || type == STREAM_TYPE_VIDEO_HEVC) {
              mVideoPid = pid;
              mMediaStream[0] = createElementaryStream(type, pid);
          }
-
          index += 5;
      }
-
      return 0;
 }
 
@@ -477,9 +475,12 @@ int64_t TsLayerContext::processOneFrame(std::list<const TsPacket*> &packets) {
 
     ElementaryStream *em = mMediaStream[index];
     if (em != NULL) {
+        if (13792320 == (*it)->pes.pts) {
+            printf("");
+        }
         frameDuration =  em->parse(*it);
         if ((*it)->pid == mAudioPid) {
-            printf ("audio frame pts:%lld, duration:%lld, next pts:%lld \n", (*it)->pes.pts, frameDuration, (*it)->pes.pts + frameDuration);
+            //printf ("audio frame pts:%lld, duration:%lld, next pts:%lld \n", (*it)->pes.pts, frameDuration, (*it)->pes.pts + frameDuration);
         }
     }
 
@@ -546,6 +547,10 @@ int TsLayerContext::parsePESPacket(TsPacket *packet) {
 int TsLayerContext::pushTsPacket(const TsPacket *pkt) {
     if (pkt == NULL) {
         return -1;
+    }
+
+    if (mMediaPkts->size() == 306) {
+        printf("");
     }
 
     if (pkt->pid == mVideoPid || pkt->pid == mAudioPid) {

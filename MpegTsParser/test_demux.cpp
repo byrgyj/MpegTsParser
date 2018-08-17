@@ -109,7 +109,8 @@ int main(int argc, char* argv[])
     }
   }
 
-  //cmdLine.filePath = "D:/data/8.6/test/";
+  //std::string path = "D:\\data\\8.6\\ts--ÑÓìû¹¥ÂÔ--µÚÒ»¼¯-- H264";
+  //cmdLine.filePath = regulateFilePath(path);
 
   if (localFiles.empty() && cmdLine.filePath.empty()) {
       printf("should specify ts files \n");
@@ -169,6 +170,8 @@ int main(int argc, char* argv[])
         else{
             printf("cannot open file: '%s'\n", curFile.c_str());
         }
+
+        index++;
     }
 
     dataContainer.printInfo();
