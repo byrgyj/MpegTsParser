@@ -95,6 +95,34 @@ namespace TSDemux
     TS_PCR                pcr;
   };
 
+  struct PESPacket {
+      PESPacket() : pts(PTS_UNSET), dts(PTS_UNSET), streamId(-1) {}
+      int64_t pts;
+      int64_t dts;
+      uint8_t streamId;
+  };
+
+
+  enum PACKET_TYPE
+  {
+      PACKET_TYPE_UNKNOWN = 0,
+      PACKET_TYPE_PSI,
+      PACKET_TYPE_PES
+  };
+  struct TsPacket {
+      int pid;
+      bool transportError;
+      bool payloadUnitStart;
+      bool hasPayload;
+      bool hasAdaptation;
+      uint8_t payload_counter;
+      int32_t payloadLength;
+      TS_PCR pcr;
+      PACKET_TYPE tsType;
+      PESPacket pes;
+      uint8_t *payload;
+  };
+
   class ElementaryStream
   {
   public:
@@ -118,6 +146,7 @@ namespace TSDemux
     STREAM_INFO stream_info;
 
     bool GetStreamPacket(STREAM_PKT* pkt);
+    virtual int64_t parse(const TsPacket *pkt);
     virtual void Parse(STREAM_PKT* pkt);
 
   protected:

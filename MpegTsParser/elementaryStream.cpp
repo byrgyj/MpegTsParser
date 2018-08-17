@@ -187,6 +187,11 @@ bool ElementaryStream::GetStreamPacket(STREAM_PKT* pkt)
   return false;
 }
 
+int64_t ElementaryStream::parse(const TsPacket*) {
+
+    return 0;
+}
+
 void ElementaryStream::Parse(STREAM_PKT* pkt)
 {
   // No parser: pass-through

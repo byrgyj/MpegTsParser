@@ -29,17 +29,22 @@ namespace TSDemux
   class ES_AAC : public ElementaryStream
   {
   private:
-    int         m_SampleRate;
-    int         m_Channels;
-    int         m_BitRate;
-    int         m_FrameSize;
+    int     m_SampleRate;
+    int     m_Channels;
+    int     m_BitRate;
+    int     m_FrameSize;
+    int     mFrameCount;
 
+    double mCurrentFrameDuration;
+
+    int64_t     mNextPts;
     int64_t     m_PTS;                /* pts of the current frame */
     int64_t     m_DTS;                /* dts of the current frame */
 
     bool        m_Configured;
     int         m_AudioMuxVersion_A;
     int         m_FrameLengthType;
+
 
     int FindHeaders(uint8_t *buf, int buf_size);
     bool ParseLATMAudioMuxElement(CBitstream *bs);
@@ -51,6 +56,7 @@ namespace TSDemux
     ES_AAC(uint16_t pes_pid);
     virtual ~ES_AAC();
 
+    virtual int64_t parse(const TsPacket*pkt);
     virtual void Parse(STREAM_PKT* pkt);
     virtual void Reset();
   };

@@ -41,7 +41,12 @@ TsLayerContext::TsLayerContext(TSDemuxer* const demux, uint64_t pos, uint16_t ch
   memset(mTsPktBuffer, 0, sizeof(mTsPktBuffer));
 
   mMediaPkts = new std::list<TSDemux::STREAM_PKT*>;
-};
+}
+
+TsLayerContext::~TsLayerContext() {
+    delete mMediaStream[0];
+    delete mMediaStream[1];
+}
 
 void TsLayerContext::Reset(void)
 {
@@ -440,12 +445,14 @@ int TsLayerContext::parsePMTSection(const uint8_t *data, int dataLength) {
 
      int index = 12 + programInfoLength;
      for ( ; index <= (sectionLength + 2 ) -  4; ) {
-         int type = get_stream_type(data[index]);
+         STREAM_TYPE type = get_stream_type(data[index]);
          int32_t pid = ((data[index+1] << 8) | data[index+2]) & 0x1FFF;
          if (type == STREAM_TYPE_AUDIO_AAC) {
              mAudioPid = pid;
+              mMediaStream[1] = createElementaryStream(type, pid);
          } else if (type == STREAM_TYPE_VIDEO_H264 || type == STREAM_TYPE_VIDEO_HEVC) {
              mVideoPid = pid;
+             mMediaStream[0] = createElementaryStream(type, pid);
          }
 
          index += 5;
@@ -454,12 +461,28 @@ int TsLayerContext::parsePMTSection(const uint8_t *data, int dataLength) {
      return 0;
 }
 
-int TsLayerContext::processOneFrame(std::list<const TsPacket*> &packets) {
+int64_t TsLayerContext::processOneFrame(std::list<const TsPacket*> &packets) {
+    int64_t frameDuration = 0;
     if (packets.empty()) {
-        return -1;
+        return frameDuration;
     }
 
     std::list<const TsPacket*>::iterator it = packets.begin();
+    int index = 0;
+    if ((*it)->pid == mVideoPid) {
+        index = 0;
+    } else if ((*it)->pid == mAudioPid) {
+        index = 1;
+    }
+
+    ElementaryStream *em = mMediaStream[index];
+    if (em != NULL) {
+        frameDuration =  em->parse(*it);
+        if ((*it)->pid == mAudioPid) {
+            printf ("audio frame pts:%lld, duration:%lld, next pts:%lld \n", (*it)->pes.pts, frameDuration, (*it)->pes.pts + frameDuration);
+        }
+    }
+
     for (; it != packets.end(); it++) {
         const TsPacket *pkt = *it;
         if (pkt == NULL) {
@@ -477,7 +500,7 @@ int TsLayerContext::processOneFrame(std::list<const TsPacket*> &packets) {
     }
 
     packets.clear();
-    return 0;
+    return frameDuration;
 }
 
 
@@ -526,24 +549,82 @@ int TsLayerContext::pushTsPacket(const TsPacket *pkt) {
     }
 
     if (pkt->pid == mVideoPid || pkt->pid == mAudioPid) {
-        if (pkt->payloadUnitStart) {
+        ElementaryStream *es = mMediaStream[pkt->pid == mVideoPid ? 0 : 1];
+        if (pkt->payloadUnitStart) {     
+            int64_t frameDuration = 0;
+            if (!mMediaDatas.empty()) {
+                frameDuration = processOneFrame(mMediaDatas);
+            }
+
+            std::list<TSDemux::STREAM_PKT*>::const_reverse_iterator it = mMediaPkts->rbegin();
+            if (it != mMediaPkts->rend()) {
+                TSDemux::STREAM_PKT *pkt = *it;
+                if (pkt != NULL) {
+                    pkt->duration = frameDuration;
+                }
+            }
+
             TSDemux::STREAM_PKT *resultPkt = new TSDemux::STREAM_PKT();
             if (resultPkt != NULL) {
                 resultPkt->pid = pkt->pid;
                 resultPkt->pts = pkt->pes.pts;
                 resultPkt->dts = pkt->pes.dts;
                 resultPkt->pcr = pkt->pcr;
+                resultPkt->duration = frameDuration;
                 mMediaPkts->push_back(resultPkt);
             }
-
-            if (!mMediaDatas.empty()) {
-                processOneFrame(mMediaDatas);
-            }
         }
+
+        es->Append(pkt->payload, pkt->payloadLength);
 
         mMediaDatas.push_back(pkt);
     }
     return 0;
+}
+
+TSDemux::ElementaryStream *TsLayerContext::createElementaryStream(STREAM_TYPE streamType, int pid) {
+    if (streamType != STREAM_TYPE_UNKNOWN) {
+        ElementaryStream *es = NULL;
+        switch (streamType){
+        case STREAM_TYPE_VIDEO_MPEG1:
+        case STREAM_TYPE_VIDEO_MPEG2:
+            es = new ES_MPEG2Video(pid);
+            break;
+        case STREAM_TYPE_AUDIO_MPEG1:
+        case STREAM_TYPE_AUDIO_MPEG2:
+            es = new ES_MPEG2Audio(pid);
+            break;
+        case STREAM_TYPE_AUDIO_AAC:
+        case STREAM_TYPE_AUDIO_AAC_ADTS:
+        case STREAM_TYPE_AUDIO_AAC_LATM:
+            es = new ES_AAC(pid);
+            break;
+        case STREAM_TYPE_VIDEO_H264:
+            es = new ES_h264(pid);
+            break;
+        case STREAM_TYPE_VIDEO_HEVC:
+            es = new ES_hevc(pid);
+            break;
+        case STREAM_TYPE_AUDIO_AC3:
+        case STREAM_TYPE_AUDIO_EAC3:
+            es = new ES_AC3(pid);
+            break;
+        case STREAM_TYPE_DVB_SUBTITLE:
+            es = new ES_Subtitle(pid);
+            break;
+        case STREAM_TYPE_DVB_TELETEXT:
+            es = new ES_Teletext(pid);
+            break;
+        default:
+            es = new ElementaryStream(pid);
+            es->has_stream_info = true;
+            break;
+        }
+        es->stream_type = streamType;
+        return es;
+    }
+
+    return NULL;
 }
 
 

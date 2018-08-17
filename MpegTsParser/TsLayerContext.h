@@ -58,32 +58,13 @@ namespace TSDemux
     AVCONTEXT_DISCONTINUITY       = 3
   };
 
-  struct PESPacket {
-      PESPacket() : pts(PTS_UNSET), dts(PTS_UNSET), streamId(-1) {}
-      int64_t pts;
-      int64_t dts;
-      uint8_t streamId;
-  };
-
-  struct TsPacket {
-      int pid;
-      bool transportError;
-      bool payloadUnitStart;
-      bool hasPayload;
-      bool hasAdaptation;
-      uint8_t payload_counter;
-      int32_t payloadLength;
-      TS_PCR pcr;
-      PACKET_TYPE tsType;
-      PESPacket pes;
-      uint8_t *payload;
-  };
 
 
   class TsLayerContext
   {
   public:
     TsLayerContext(TSDemuxer* const demux, uint64_t pos, uint16_t channel, int fileIndex);
+    ~TsLayerContext();
     void Reset(void);
 
     bool HasPIDStreamData() const;
@@ -111,10 +92,10 @@ namespace TSDemux
     int parserTsPayload();
     int parsePATSection(const uint8_t *data, int dataLength);
     int parsePMTSection(const uint8_t *data, int dataLength);
-    int processOneFrame(std::list<const TsPacket*> &packets);
+    int64_t processOneFrame(std::list<const TsPacket*> &packets);
     int parsePESPacket(TsPacket *packet);
     int pushTsPacket(const TsPacket *pkt);
-
+    TSDemux::ElementaryStream *createElementaryStream(STREAM_TYPE streamType, int pid);
 
     int ProcessTSPacket();
     int ProcessTSPayload();
@@ -167,6 +148,7 @@ namespace TSDemux
     int64_t mTsStartTimeStamp; // first video packet dts;
     std::map<uint16_t, Packet> mTsTypePkts;
     std::list<TSDemux::STREAM_PKT*> *mMediaPkts;
+    TSDemux::ElementaryStream  *mMediaStream[2];
 
     // Packet context
     uint16_t pid;

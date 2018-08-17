@@ -44,11 +44,40 @@ ES_AAC::ES_AAC(uint16_t pes_pid)
   m_BitRate                     = 0;
   m_AudioMuxVersion_A           = 0;
   es_alloc_init                 = 1920*2;
+  mFrameCount               = 0;
+  mNextPts = 0;
   Reset();
 }
 
 ES_AAC::~ES_AAC()
 {
+}
+
+int64_t ES_AAC::parse(const TsPacket *pkt) {
+    int p = es_parsed;
+    int l;
+    mCurrentFrameDuration = 0;
+    while ((l = es_len - p) > 8) {
+        if (FindHeaders(es_buf + p, l) < 0){
+            mFrameCount++;
+            p += m_FrameSize;
+        } else {
+            p++;        
+        }  
+    }
+    es_parsed = p;
+
+    mCurrentFrameDuration *= 90000;
+    //mNextPts = pkt->pes.pts + mCurrentFrameDuration * 90000;
+
+    if (es_found_frame && l >= m_FrameSize) {
+        bool streamChange = SetAudioInformation(m_Channels, m_SampleRate, m_BitRate, 0, 0);
+        es_consumed = p + m_FrameSize;
+        es_parsed = es_consumed;
+        es_found_frame = false;
+    }
+
+    return mCurrentFrameDuration;
 }
 
 void ES_AAC::Parse(STREAM_PKT* pkt)
@@ -82,8 +111,8 @@ void ES_AAC::Parse(STREAM_PKT* pkt)
 
 int ES_AAC::FindHeaders(uint8_t *buf, int buf_size)
 {
-  if (es_found_frame)
-    return -1;
+  //if (es_found_frame)
+  //  return -1;
 
   uint8_t *buf_ptr = buf;
 
@@ -124,7 +153,7 @@ int ES_AAC::FindHeaders(uint8_t *buf, int buf_size)
     {
       // need at least 7 bytes for header
       if (buf_size < 7)
-        return -1;
+        return 0;
 
       CBitstream bs(buf_ptr, 9 * 8);
       bs.skipBits(15);
@@ -132,7 +161,7 @@ int ES_AAC::FindHeaders(uint8_t *buf, int buf_size)
       // check if CRC is present, means header is 9 byte long
       int noCrc = bs.readBits(1);
       if (!noCrc && (buf_size < 9))
-        return -1;
+        return 0;
 
       bs.skipBits(2); // profile
       int SampleRateIndex = bs.readBits(4);
@@ -146,7 +175,10 @@ int ES_AAC::FindHeaders(uint8_t *buf, int buf_size)
       es_found_frame = true;
       m_DTS = c_pts;
       m_PTS = c_pts;
-      c_pts += 90000 * 1024 / (!m_SampleRate ? aac_sample_rates[4] : m_SampleRate);
+      double value = 1024 / (double)(!m_SampleRate ? aac_sample_rates[4] : m_SampleRate);
+      mCurrentFrameDuration += value;
+      int64_t duration = 90000 * value;
+      c_pts += duration;
       return -1;
     }
   }

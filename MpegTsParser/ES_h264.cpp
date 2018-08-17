@@ -1,23 +1,3 @@
-/*
- *      Copyright (C) 2005-2013 Team XBMC
- *      http://www.xbmc.org
- *
- *  This Program is free software; you can redistribute it and/or modify
- *  it under the terms of the GNU General Public License as published by
- *  the Free Software Foundation; either version 2, or (at your option)
- *  any later version.
- *
- *  This Program is distributed in the hope that it will be useful,
- *  but WITHOUT ANY WARRANTY; without even the implied warranty of
- *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
- *  GNU General Public License for more details.
- *
- *  You should have received a copy of the GNU General Public License
- *  along with XBMC; see the file COPYING.  If not, see
- *  <http://www.gnu.org/licenses/>.
- *
- */
-
 #include "ES_h264.h"
 #include "bitstream.h"
 #include "debug.h"
@@ -47,8 +27,7 @@ static const int h264_lev2cpbsize[][2] =
 };
 
 ES_h264::ES_h264(uint16_t pes_pid)
- : ElementaryStream(pes_pid)
-{
+ : ElementaryStream(pes_pid) {
   m_Height                      = 0;
   m_Width                       = 0;
   m_FPS                         = 25;
@@ -65,12 +44,10 @@ ES_h264::ES_h264(uint16_t pes_pid)
   Reset();
 }
 
-ES_h264::~ES_h264()
-{
+ES_h264::~ES_h264(){
 }
 
-void ES_h264::Parse(STREAM_PKT* pkt)
-{
+int64_t ES_h264::parse(const TsPacket *pkt){
   size_t frame_ptr = es_consumed;
   size_t p = es_parsed;
   uint32_t startcode = m_StartCode;
@@ -80,7 +57,7 @@ void ES_h264::Parse(STREAM_PKT* pkt)
   {
     if ((startcode & 0xffffff00) == 0x00000100)
     {
-      if (Parse_H264(startcode, p, frameComplete) < 0)
+      if (parseAVC(startcode, p, frameComplete) < 0)
       {
         break;
       }
@@ -112,21 +89,14 @@ void ES_h264::Parse(STREAM_PKT* pkt)
           m_FpsScale = static_cast<int>(Rescale(duration, RESCALE_TIME_BASE, PTS_TIME_BASE));
         streamChange = SetVideoInformation(m_FpsScale, RESCALE_TIME_BASE, m_Height, m_Width, static_cast<float>(DAR), m_Interlaced);
       }
-
-      pkt->pid            = pid;
-      pkt->slice_type     = m_streamData.vcl_nal.slice_type;
-      pkt->size           = es_consumed - frame_ptr;
-      pkt->data           = &es_buf[frame_ptr];
-      pkt->dts            = m_DTS;
-      pkt->pts            = m_PTS;
-      pkt->duration       = duration;
-      pkt->streamChange   = streamChange;
     }
-    m_StartCode = 0xffffffff;
+    m_StartCode = 0xFFFFFFFF;
     es_parsed = es_consumed;
     es_found_frame = false;
     es_frame_valid = true;
   }
+
+  return 0;
 }
 
 void ES_h264::Reset()
@@ -139,7 +109,7 @@ void ES_h264::Reset()
   memset(&m_streamData, 0, sizeof(m_streamData));
 }
 
-int ES_h264::Parse_H264(uint32_t startcode, int buf_ptr, bool &complete)
+int ES_h264::parseAVC(uint32_t startcode, int buf_ptr, bool &complete)
 {
   int len = es_len - buf_ptr;
   uint8_t *buf = es_buf + buf_ptr;
@@ -164,7 +134,7 @@ int ES_h264::Parse_H264(uint32_t startcode, int buf_ptr, bool &complete)
     memset(&vcl, 0, sizeof(h264_private::VCL_NAL));
     vcl.nal_ref_idc = startcode & 0x60;
     vcl.nal_unit_type = startcode & 0x1F;
-    if (!Parse_SLH(buf, len, vcl))
+    if (!parseSliceHeader(buf, len, vcl))
       return 0;
 
     // check for the beginning of a new access unit
@@ -214,7 +184,7 @@ int ES_h264::Parse_H264(uint32_t startcode, int buf_ptr, bool &complete)
     // TODO: how big is SPS?
     if (len < 256)
       return -1;
-    if (!Parse_SPS(buf, len))
+    if (!parseSPS(buf, len))
       return 0;
 
     m_NeedSPS = false;
@@ -232,7 +202,7 @@ int ES_h264::Parse_H264(uint32_t startcode, int buf_ptr, bool &complete)
     // TODO: how big is PPS
     if (len < 64)
       return -1;
-    if (!Parse_PPS(buf, len))
+    if (!parsePPS(buf, len))
       return 0;
     m_NeedPPS = false;
     break;
@@ -277,7 +247,7 @@ int ES_h264::Parse_H264(uint32_t startcode, int buf_ptr, bool &complete)
   return 0;
 }
 
-bool ES_h264::Parse_PPS(uint8_t *buf, int len)
+bool ES_h264::parsePPS(uint8_t *buf, int len)
 {
   CBitstream bs(buf, len*8);
 
@@ -289,7 +259,7 @@ bool ES_h264::Parse_PPS(uint8_t *buf, int len)
   return true;
 }
 
-bool ES_h264::Parse_SLH(uint8_t *buf, int len, h264_private::VCL_NAL &vcl)
+bool ES_h264::parseSliceHeader(uint8_t *buf, int len, h264_private::VCL_NAL &vcl)
 {
   CBitstream bs(buf, len*8);
 
@@ -354,7 +324,7 @@ bool ES_h264::Parse_SLH(uint8_t *buf, int len, h264_private::VCL_NAL &vcl)
   return true;
 }
 
-bool ES_h264::Parse_SPS(uint8_t *buf, int len)
+bool ES_h264::parseSPS(uint8_t *buf, int len)
 {
   CBitstream bs(buf, len*8);
   unsigned int tmp, frame_mbs_only;

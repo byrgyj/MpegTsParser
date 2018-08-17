@@ -27,13 +27,6 @@
 
 namespace TSDemux
 {
-  enum PACKET_TYPE
-  {
-    PACKET_TYPE_UNKNOWN = 0,
-    PACKET_TYPE_PSI,
-    PACKET_TYPE_PES
-  };
-
   class Packet
   {
   public:

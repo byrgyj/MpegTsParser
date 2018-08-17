@@ -157,13 +157,18 @@ void ParseredDataContainer::processAudio() {
         }
 
         int64_t distance = it->first - mLastAudioDts;
-        if (mLastAudioDts != 0 && mAudioFrameDistanceSets.find(distance) == mAudioFrameDistanceSets.end()) {
+//         if (mLastAudioDts != 0 && mAudioFrameDistanceSets.find(distance) == mAudioFrameDistanceSets.end()) {
+//             TSDemux::DBG(DEMUX_DBG_INFO, "audio pts is discontinuity, distance:%lld, cur pts:%lld, pre pts:%lld \n", distance,  it->first, mLastAudioDts);
+//             audioStreamValidate = false;
+//         }
+        uint64_t dis = fabs((double)packet->dts - mLastAudioDts - packet->duration);
+        if (mLastAudioDts != 0 && dis > 1){
             TSDemux::DBG(DEMUX_DBG_INFO, "audio pts is discontinuity, distance:%lld, cur pts:%lld, pre pts:%lld \n", distance,  it->first, mLastAudioDts);
             audioStreamValidate = false;
         }
 
         if (checkCurrentPrint(currentIndex, packetCount)) {
-            TSDemux::DBG(DEMUX_DBG_INFO, "[A] pts=%lld, dts=%lld \n", it->first, packet->dts);
+            TSDemux::DBG(DEMUX_DBG_INFO, "[A] pts=%lld, dts=%lld, next pts:%lld \n", it->first, packet->dts, packet->dts + packet->duration);
             //printf("[audio-%lld] pts=%lld, dts=%lld \n", tsSegment->tsStartTime, mapIndex->first, mapIndex->second);
         }
         mLastAudioDts = it->first;
