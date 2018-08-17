@@ -191,7 +191,7 @@ void ParseredDataContainer::processPCR() {
             continue;
         }
 
-        if (checkPrintPcr(curIndex++, totalPacket)) {
+        if (checkPrintPcr(curIndex++, totalPacket) && packet->pcr.pcr != 0) {
             //double time = pcrToTime(packet->pcr.pcr_base);
             TSDemux::DBG(DEMUX_DBG_INFO, "[V-PCR]pcr:%lld, time:%s \n", packet->pcr.pcr, pcrToTime(packet->pcr.pcr_base));
         }
@@ -213,9 +213,9 @@ bool ParseredDataContainer::isPcrValidate(int64_t prePcr, int64_t curPcr) {
 const char *ParseredDataContainer::pcrToTime(int64_t pcr) {
     double seconds =  pcr * 300 / (double)27000000;
 
-    int hours = seconds / 3600;
-    int mins = (seconds - hours * 3600) / 60;
-    int secs = seconds - hours * 3600 - mins * 60;
+    int hours = (int)seconds / 3600;
+    int mins = (int)(seconds - hours * 3600) / 60;
+    int secs = (int)seconds - hours * 3600 - mins * 60;
 
     int millSecs = roundDouble((seconds - (int)seconds) * 1000);
 

@@ -58,6 +58,13 @@ namespace TSDemux
     AVCONTEXT_DISCONTINUITY       = 3
   };
 
+  struct PESPacket {
+      PESPacket() : pts(PTS_UNSET), dts(PTS_UNSET), streamId(-1) {}
+      int64_t pts;
+      int64_t dts;
+      uint8_t streamId;
+  };
+
   struct TsPacket {
       int pid;
       bool transportError;
@@ -68,6 +75,7 @@ namespace TSDemux
       int32_t payloadLength;
       TS_PCR pcr;
       PACKET_TYPE tsType;
+      PESPacket pes;
       uint8_t *payload;
   };
 
@@ -103,6 +111,10 @@ namespace TSDemux
     int parserTsPayload();
     int parsePATSection(const uint8_t *data, int dataLength);
     int parsePMTSection(const uint8_t *data, int dataLength);
+    int processOneFrame(std::list<const TsPacket*> &packets);
+    int parsePESPacket(TsPacket *packet);
+    int pushTsPacket(const TsPacket *pkt);
+
 
     int ProcessTSPacket();
     int ProcessTSPayload();
@@ -139,7 +151,7 @@ namespace TSDemux
     int mAudioPid;
     int mPmtPid;
 
-    std::list<TsPacket*> mMediaDatas;
+    std::list<const TsPacket*> mMediaDatas;
 
     int mFileIndex;
 

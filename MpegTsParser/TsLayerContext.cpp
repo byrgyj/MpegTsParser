@@ -1,24 +1,3 @@
-/*
- *      Copyright (C) 2013 Jean-Luc Barriere
- *
- *  This Program is free software; you can redistribute it and/or modify
- *  it under the terms of the GNU General Public License as published by
- *  the Free Software Foundation; either version 2, or (at your option)
- *  any later version.
- *
- *  This Program is distributed in the hope that it will be useful,
- *  but WITHOUT ANY WARRANTY; without even the implied warranty of
- *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
- *  GNU General Public License for more details.
- *
- *  You should have received a copy of the GNU General Public License
- *  along with this program; see the file COPYING.  If not, write to
- *  the Free Software Foundation, 51 Franklin Street, Fifth Floor, Boston,
- *  MA 02110-1301 USA
- *  http://www.gnu.org/copyleft/gpl.html
- *
- */
-
 #include "TsLayerContext.h"
 #include "ES_MPEGVideo.h"
 #include "ES_MPEGAudio.h"
@@ -52,8 +31,8 @@ TsLayerContext::TsLayerContext(TSDemuxer* const demux, uint64_t pos, uint16_t ch
   , mCurrentPkt(NULL)
   , mVideoPktCount(0)
   , mAudioPktCount(0)
-  , mVideoPid(0)
-  , mAudioPid(0)
+  , mVideoPid(-1)
+  , mAudioPid(-1)
   , mFileIndex(fileIndex)
   , mTsStartTimeStamp(-1)
   , mPmtPid(0)
@@ -423,7 +402,7 @@ TsPacket *TsLayerContext::parserTsPacket() {
     } else if (tsPkt->pid == mPmtPid) {
         parsePMTSection(tsPkt->payload + 1, tsPkt->payloadLength - 1);
     } else if (tsPkt->pid == mVideoPid || tsPkt->pid == mAudioPid) {
-        mMediaDatas.push_back(tsPkt);
+      
     }
    
     return tsPkt;
@@ -473,6 +452,98 @@ int TsLayerContext::parsePMTSection(const uint8_t *data, int dataLength) {
      }
 
      return 0;
+}
+
+int TsLayerContext::processOneFrame(std::list<const TsPacket*> &packets) {
+    if (packets.empty()) {
+        return -1;
+    }
+
+    std::list<const TsPacket*>::iterator it = packets.begin();
+    for (; it != packets.end(); it++) {
+        const TsPacket *pkt = *it;
+        if (pkt == NULL) {
+            continue;
+        } else {
+            if (pkt->pid == mVideoPid) {
+                // video
+            } else if (pkt->pid == mAudioPid) {
+                // audio
+            }
+        }
+
+        delete []pkt->payload;
+        delete pkt;
+    }
+
+    packets.clear();
+    return 0;
+}
+
+
+int TsLayerContext::parsePESPacket(TsPacket *packet) {
+    if (packet == NULL) {
+        return 0;
+    }
+ 
+    size_t pos = 0;
+    bool has_pts = false;
+    if (packet->payloadLength >= 9){
+        uint8_t streamId = av_rb8(packet->payload + 3); // stream_id
+        uint16_t pesLength = av_rb16(packet->payload + 6); // PES_packet_length
+        uint8_t flags = av_rb8(packet->payload + 7);
+
+        uint8_t pesHeadLength = av_rb8(packet->payload + 8); // PES_header_data_length
+
+        switch (flags & 0xC0)
+        {
+        case 0x80: // PTS only
+            {
+                has_pts = true;
+                uint64_t pts = decode_pts(packet->payload + 9);
+                packet->pes.pts = packet->pes.dts = pts;
+            }
+            break;
+        case 0xc0: // PTS,DTS
+            {
+                has_pts = true;
+                uint64_t pts = decode_pts(packet->payload + 9);
+                uint64_t dts = decode_pts(packet->payload + 14);
+                packet->pes.pts = pts;
+                packet->pes.dts = dts;
+            }
+            break;
+        }
+    }
+
+
+    return AVCONTEXT_CONTINUE;
+}
+
+int TsLayerContext::pushTsPacket(const TsPacket *pkt) {
+    if (pkt == NULL) {
+        return -1;
+    }
+
+    if (pkt->pid == mVideoPid || pkt->pid == mAudioPid) {
+        if (pkt->payloadUnitStart) {
+            TSDemux::STREAM_PKT *resultPkt = new TSDemux::STREAM_PKT();
+            if (resultPkt != NULL) {
+                resultPkt->pid = pkt->pid;
+                resultPkt->pts = pkt->pes.pts;
+                resultPkt->dts = pkt->pes.dts;
+                resultPkt->pcr = pkt->pcr;
+                mMediaPkts->push_back(resultPkt);
+            }
+
+            if (!mMediaDatas.empty()) {
+                processOneFrame(mMediaDatas);
+            }
+        }
+
+        mMediaDatas.push_back(pkt);
+    }
+    return 0;
 }
 
 

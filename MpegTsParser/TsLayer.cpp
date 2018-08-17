@@ -96,10 +96,15 @@ int TsLayer::doDemux(){
         }
 
         TSDemux::TsPacket *pkt = mTsContext->parserTsPacket();
-        if (pkt->payloadUnitStart && pkt->tsType == TSDemux::PACKET_TYPE_PES) {
-            
+
+        if (pkt == NULL) {
+            mTsContext->Shift();
+        } else {
+            mTsContext->parsePESPacket(pkt);
+            mTsContext->pushTsPacket(pkt);
+            mTsContext->goNext();
         }
-        mTsContext->goNext();
+
         indexCount++;
 //         ret = mTsContext->ProcessTSPacket();
 //         
