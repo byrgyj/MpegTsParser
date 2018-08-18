@@ -88,11 +88,12 @@ namespace TSDemux
     void GoPosition(uint64_t pos);
     uint64_t GetPosition() const;
 
+    void destroyStream();
     TSDemux::TsPacket *parserTsPacket();
     int parserTsPayload();
     int parsePATSection(const uint8_t *data, int dataLength);
     int parsePMTSection(const uint8_t *data, int dataLength);
-    int64_t processOneFrame(std::list<const TsPacket*> &packets);
+    int64_t processOneFrame(std::list<const TsPacket*> &packets, TSDemux::STREAM_PKT *pkt);
     int parsePESPacket(TsPacket *packet);
     int pushTsPacket(const TsPacket *pkt);
     TSDemux::ElementaryStream *createElementaryStream(STREAM_TYPE streamType, int pid);
@@ -148,7 +149,9 @@ namespace TSDemux
     int64_t mTsStartTimeStamp; // first video packet dts;
     std::map<uint16_t, Packet> mTsTypePkts;
     std::list<TSDemux::STREAM_PKT*> *mMediaPkts;
-    TSDemux::ElementaryStream  *mMediaStream[2];
+
+    TSDemux::ElementaryStream  *mVideoStream;
+    TSDemux::ElementaryStream  *mAudioStream;
 
     // Packet context
     uint16_t pid;

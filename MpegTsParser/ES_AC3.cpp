@@ -139,17 +139,14 @@ int64_t ES_AC3::parse(const TsPacket *pkt){
 
   frameDuration = frameCount * 90000 * 1536 / m_SampleRate;
 
-  if (es_found_frame && l >= m_FrameSize)
+  if (es_found_frame)
   {
     bool streamChange = SetAudioInformation(m_Channels, m_SampleRate, m_BitRate, 0, 0);
-
-    //pkt->duration       = 90000 * 1536 / m_SampleRate;
-
-
-    es_consumed = p + m_FrameSize;
-    es_parsed = es_consumed;
     es_found_frame = false;
   }
+
+  es_consumed = p + m_FrameSize;
+  es_parsed = es_consumed;
 
   return frameDuration;
 }

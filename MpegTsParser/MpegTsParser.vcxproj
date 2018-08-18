@@ -121,9 +121,6 @@
     <ClCompile Include="TsLayer.cpp" />
     <ClCompile Include="TsLayerContext.cpp" />
   </ItemGroup>
-  <ItemGroup>
-    <ResourceCompile Include="MpegTsParser.rc" />
-  </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
   </ImportGroup>

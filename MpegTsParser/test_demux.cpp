@@ -109,8 +109,8 @@ int main(int argc, char* argv[])
     }
   }
 
-  //std::string path = "D:\\data\\8.6\\ts--ÑÓìû¹¥ÂÔ--µÚÒ»¼¯-- H264";
-  //cmdLine.filePath = regulateFilePath(path);
+  std::string path = "E:\\Data\\debug\\8_5\\ts\\ts";
+  cmdLine.filePath = regulateFilePath(path);
 
   if (localFiles.empty() && cmdLine.filePath.empty()) {
       printf("should specify ts files \n");

@@ -12,7 +12,7 @@
 #include <cassert>
 
 #define MAX_RESYNC_SIZE         65536
-
+#define FREE_PTR(ptr) if (ptr != NULL) { delete ptr ;}
 using namespace TSDemux;
 
 TsLayerContext::TsLayerContext(TSDemuxer* const demux, uint64_t pos, uint16_t channel, int fileIndex)
@@ -36,6 +36,8 @@ TsLayerContext::TsLayerContext(TSDemuxer* const demux, uint64_t pos, uint16_t ch
   , mFileIndex(fileIndex)
   , mTsStartTimeStamp(-1)
   , mPmtPid(0)
+  , mVideoStream(NULL),
+  mAudioStream(NULL)
 {
   m_demux = demux;
   memset(mTsPktBuffer, 0, sizeof(mTsPktBuffer));
@@ -44,8 +46,7 @@ TsLayerContext::TsLayerContext(TSDemuxer* const demux, uint64_t pos, uint16_t ch
 }
 
 TsLayerContext::~TsLayerContext() {
-    delete mMediaStream[0];
-    delete mMediaStream[1];
+    destroyStream();
 }
 
 void TsLayerContext::Reset(void)
@@ -336,6 +337,11 @@ uint64_t TsLayerContext::GetPosition() const
 {
   return av_pos;
 }
+void TsLayerContext::destroyStream() {
+   FREE_PTR(mVideoStream);
+   FREE_PTR(mAudioStream);
+
+}
 
 TsPacket *TsLayerContext::parserTsPacket() {
     int ret = AVCONTEXT_CONTINUE;
@@ -449,39 +455,32 @@ int TsLayerContext::parsePMTSection(const uint8_t *data, int dataLength) {
          int32_t pid = ((data[index+1] << 8) | data[index+2]) & 0x1FFF;
          if (type == STREAM_TYPE_AUDIO_AAC || type == STREAM_TYPE_AUDIO_EAC3 || type == STREAM_TYPE_AUDIO_AC3) {
              mAudioPid = pid;
-              mMediaStream[1] = createElementaryStream(type, pid);
+             if (mAudioStream == NULL){
+                 mAudioStream = createElementaryStream(type, pid);
+             }
          } else if (type == STREAM_TYPE_VIDEO_H264 || type == STREAM_TYPE_VIDEO_HEVC) {
              mVideoPid = pid;
-             mMediaStream[0] = createElementaryStream(type, pid);
+             if (mVideoStream == NULL) {
+                 mVideoStream = createElementaryStream(type, pid);
+             }
          }
          index += 5;
      }
      return 0;
 }
 
-int64_t TsLayerContext::processOneFrame(std::list<const TsPacket*> &packets) {
+int64_t TsLayerContext::processOneFrame(std::list<const TsPacket*> &packets, TSDemux::STREAM_PKT *pkt) {
     int64_t frameDuration = 0;
     if (packets.empty()) {
         return frameDuration;
     }
 
     std::list<const TsPacket*>::iterator it = packets.begin();
-    int index = 0;
-    if ((*it)->pid == mVideoPid) {
-        index = 0;
-    } else if ((*it)->pid == mAudioPid) {
-        index = 1;
-    }
+    ElementaryStream *em = (*it)->pid == mVideoPid ? mVideoStream : mAudioStream;
 
-    ElementaryStream *em = mMediaStream[index];
     if (em != NULL) {
-        if (13792320 == (*it)->pes.pts) {
-            printf("");
-        }
         frameDuration =  em->parse(*it);
-        if ((*it)->pid == mAudioPid) {
-            //printf ("audio frame pts:%lld, duration:%lld, next pts:%lld \n", (*it)->pes.pts, frameDuration, (*it)->pes.pts + frameDuration);
-        }
+        pkt->duration = frameDuration;
     }
 
     for (; it != packets.end(); it++) {
@@ -540,6 +539,9 @@ int TsLayerContext::parsePESPacket(TsPacket *packet) {
         }
     }
 
+    if (packet->pid == mVideoPid && mTsStartTimeStamp == -1) {
+        mTsStartTimeStamp = packet->pes.dts;
+    }
 
     return AVCONTEXT_CONTINUE;
 }
@@ -554,19 +556,19 @@ int TsLayerContext::pushTsPacket(const TsPacket *pkt) {
     }
 
     if (pkt->pid == mVideoPid || pkt->pid == mAudioPid) {
-        ElementaryStream *es = mMediaStream[pkt->pid == mVideoPid ? 0 : 1];
+        ElementaryStream *es = pkt->pid == mVideoPid ? mVideoStream :mAudioStream;
         if (pkt->payloadUnitStart) {     
             int64_t frameDuration = 0;
-            if (!mMediaDatas.empty()) {
-                frameDuration = processOneFrame(mMediaDatas);
-            }
+          
 
+            TSDemux::STREAM_PKT *curPkt = NULL;
             std::list<TSDemux::STREAM_PKT*>::const_reverse_iterator it = mMediaPkts->rbegin();
             if (it != mMediaPkts->rend()) {
-                TSDemux::STREAM_PKT *pkt = *it;
-                if (pkt != NULL) {
-                    pkt->duration = frameDuration;
-                }
+                curPkt = *it;
+            }
+
+            if (!mMediaDatas.empty()) {
+                frameDuration = processOneFrame(mMediaDatas, curPkt);
             }
 
             TSDemux::STREAM_PKT *resultPkt = new TSDemux::STREAM_PKT();
@@ -1144,18 +1146,6 @@ int TsLayerContext::parse_ts_pes()
     curPkt->dts = mCurrentPkt->stream->c_dts;
     curPkt->pts = mCurrentPkt->stream->c_pts;
     curPkt->pcr = mCurrentPkt->pcr;
-
-    if (curPkt->pid == mVideoPid) {
-        mVideoPktCount++;
-    } else if (curPkt->pid == mAudioPid) {
-        mAudioPktCount++;
-    }
-
-    if (mTsStartTimeStamp == -1) {
-        mTsStartTimeStamp = curPkt->dts;
-    }
-
-    mMediaPkts->push_back(curPkt);
   }
 
   if (mCurrentPkt->streaming)
