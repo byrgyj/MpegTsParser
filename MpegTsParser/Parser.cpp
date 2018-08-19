@@ -109,8 +109,8 @@ int main(int argc, char* argv[])
     }
   }
 
-  std::string path = "E:\\Data\\debug\\8_5\\ts\\ts";
-  cmdLine.filePath = regulateFilePath(path);
+  //std::string path = "E:\\Data\\debug\\8_5\\ts\\ts";
+  //cmdLine.filePath = regulateFilePath(path);
 
   if (localFiles.empty() && cmdLine.filePath.empty()) {
       printf("should specify ts files \n");

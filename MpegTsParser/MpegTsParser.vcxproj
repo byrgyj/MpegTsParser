@@ -75,18 +75,12 @@
     <None Include="ReadMe.txt" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="AudioStreamAAC.h" />
+    <ClInclude Include="AudioStreamAC3.h" />
     <ClInclude Include="bitstream.h" />
     <ClInclude Include="CommandLine.h" />
     <ClInclude Include="debug.h" />
     <ClInclude Include="elementaryStream.h" />
-    <ClInclude Include="ES_AAC.h" />
-    <ClInclude Include="ES_AC3.h" />
-    <ClInclude Include="ES_h264.h" />
-    <ClInclude Include="ES_hevc.h" />
-    <ClInclude Include="ES_MPEGAudio.h" />
-    <ClInclude Include="ES_MPEGVideo.h" />
-    <ClInclude Include="ES_Subtitle.h" />
-    <ClInclude Include="ES_Teletext.h" />
     <ClInclude Include="ParserdDataContainer.h" />
     <ClInclude Include="resource.h" />
     <ClInclude Include="stdafx.h" />
@@ -96,30 +90,27 @@
     <ClInclude Include="TsLayerContext.h" />
     <ClInclude Include="tsPacket.h" />
     <ClInclude Include="tsTable.h" />
+    <ClInclude Include="VideoStreamAVC.h" />
+    <ClInclude Include="VideoStreamHEVC.h" />
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="AudioStreamAAC.cpp" />
+    <ClCompile Include="AudioStreamAC3.cpp" />
     <ClCompile Include="bitstream.cpp" />
     <ClCompile Include="CommandLine.cpp" />
     <ClCompile Include="debug.cpp" />
     <ClCompile Include="elementaryStream.cpp" />
-    <ClCompile Include="ES_AAC.cpp" />
-    <ClCompile Include="ES_AC3.cpp" />
-    <ClCompile Include="ES_h264.cpp" />
-    <ClCompile Include="ES_hevc.cpp" />
-    <ClCompile Include="ES_MPEGAudio.cpp" />
-    <ClCompile Include="ES_MPEGVideo.cpp" />
-    <ClCompile Include="ES_Subtitle.cpp" />
-    <ClCompile Include="ES_Teletext.cpp" />
-    <ClCompile Include="MpegTsParser.cpp" />
+    <ClCompile Include="Parser.cpp" />
     <ClCompile Include="ParserdDataContainer.cpp" />
     <ClCompile Include="stdafx.cpp">
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">Create</PrecompiledHeader>
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">Create</PrecompiledHeader>
     </ClCompile>
-    <ClCompile Include="test_demux.cpp" />
     <ClCompile Include="Tool.cpp" />
     <ClCompile Include="TsLayer.cpp" />
     <ClCompile Include="TsLayerContext.cpp" />
+    <ClCompile Include="VideoStreamAVC.cpp" />
+    <ClCompile Include="VideoStreamHEVC.cpp" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

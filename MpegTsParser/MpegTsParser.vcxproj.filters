@@ -33,30 +33,6 @@
     <ClInclude Include="elementaryStream.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="ES_AAC.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="ES_AC3.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="ES_h264.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="ES_hevc.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="ES_MPEGAudio.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="ES_MPEGVideo.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="ES_Subtitle.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="ES_Teletext.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
     <ClInclude Include="tsPacket.h">
       <Filter>Header Files</Filter>
     </ClInclude>
@@ -81,12 +57,21 @@
     <ClInclude Include="resource.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="AudioStreamAAC.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="AudioStreamAC3.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="VideoStreamAVC.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="VideoStreamHEVC.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="stdafx.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="MpegTsParser.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="bitstream.cpp">
@@ -96,33 +81,6 @@
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="elementaryStream.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="ES_AAC.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="ES_AC3.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="ES_h264.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="ES_hevc.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="ES_MPEGAudio.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="ES_MPEGVideo.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="ES_Subtitle.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="ES_Teletext.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="test_demux.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="ParserdDataContainer.cpp">
@@ -138,6 +96,21 @@
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="CommandLine.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="Parser.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="AudioStreamAAC.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="AudioStreamAC3.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="VideoStreamAVC.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="VideoStreamHEVC.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>
