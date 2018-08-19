@@ -27,7 +27,7 @@
 
 namespace TSDemux
 {
-  class ES_hevc : public ElementaryStream
+  class VideoStreamHEVC : public ElementaryStream
   {
   private:
     typedef struct hevc_private
@@ -109,8 +109,8 @@ namespace TSDemux
     bool IsFirstVclNal(hevc_private::VCL_NAL &vcl);
 
   public:
-    ES_hevc(uint16_t pes_pid);
-    virtual ~ES_hevc();
+    VideoStreamHEVC(uint16_t pes_pid);
+    virtual ~VideoStreamHEVC();
 
     virtual void Parse(STREAM_PKT* pkt);
     virtual void Reset();

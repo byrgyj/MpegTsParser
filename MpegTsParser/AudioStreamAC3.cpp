@@ -18,7 +18,7 @@
  *
  */
 
-#include "ES_AC3.h"
+#include "AudioStreamAC3.h"
 #include "bitstream.h"
 
 #include <algorithm>      // for max
@@ -105,7 +105,7 @@ typedef enum {
   EAC3_FRAME_TYPE_RESERVED
 } EAC3FrameType;
 
-ES_AC3::ES_AC3(uint16_t pid)
+AudioStreamAC3::AudioStreamAC3(uint16_t pid)
  : ElementaryStream(pid)
 {
   m_PTS                       = 0;
@@ -117,11 +117,11 @@ ES_AC3::ES_AC3(uint16_t pid)
   es_alloc_init               = 1920*2;
 }
 
-ES_AC3::~ES_AC3()
+AudioStreamAC3::~AudioStreamAC3()
 {
 }
 
-int64_t ES_AC3::parse(const TsPacket *pkt){
+int64_t AudioStreamAC3::parse(const TsPacket *pkt){
   int frameCount = 0;
   int64_t frameDuration = 0;
   int p = es_parsed;
@@ -151,7 +151,7 @@ int64_t ES_AC3::parse(const TsPacket *pkt){
   return frameDuration;
 }
 
-int ES_AC3::FindHeaders(uint8_t *buf, int buf_size)
+int AudioStreamAC3::FindHeaders(uint8_t *buf, int buf_size)
 {
 //   if (es_found_frame)
 //     return -1;
@@ -245,7 +245,7 @@ int ES_AC3::FindHeaders(uint8_t *buf, int buf_size)
   return 0;
 }
 
-void ES_AC3::Reset()
+void AudioStreamAC3::Reset()
 {
   ElementaryStream::Reset();
 }

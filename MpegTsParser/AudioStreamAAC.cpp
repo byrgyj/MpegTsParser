@@ -18,7 +18,7 @@
  *
  */
 
-#include "ES_AAC.h"
+#include "AudioStreamAAC.h"
 #include "bitstream.h"
 
 using namespace TSDemux;
@@ -31,7 +31,7 @@ static int aac_sample_rates[16] =
 };
 
 
-ES_AAC::ES_AAC(uint16_t pes_pid)
+AudioStreamAAC::AudioStreamAAC(uint16_t pes_pid)
  : ElementaryStream(pes_pid)
 {
   m_Configured                  = false;
@@ -49,11 +49,11 @@ ES_AAC::ES_AAC(uint16_t pes_pid)
   Reset();
 }
 
-ES_AAC::~ES_AAC()
+AudioStreamAAC::~AudioStreamAAC()
 {
 }
 
-int64_t ES_AAC::parse(const TsPacket *pkt) {
+int64_t AudioStreamAAC::parse(const TsPacket *pkt) {
     int p = es_parsed;
     int l;
     mCurrentFrameDuration = 0;
@@ -80,7 +80,7 @@ int64_t ES_AAC::parse(const TsPacket *pkt) {
     return mCurrentFrameDuration;
 }
 
-void ES_AAC::Parse(STREAM_PKT* pkt)
+void AudioStreamAAC::Parse(STREAM_PKT* pkt)
 {
   int p = es_parsed;
   int l;
@@ -109,7 +109,7 @@ void ES_AAC::Parse(STREAM_PKT* pkt)
   }
 }
 
-int ES_AAC::FindHeaders(uint8_t *buf, int buf_size)
+int AudioStreamAAC::FindHeaders(uint8_t *buf, int buf_size)
 {
   //if (es_found_frame)
   //  return -1;
@@ -185,7 +185,7 @@ int ES_AAC::FindHeaders(uint8_t *buf, int buf_size)
   return 0;
 }
 
-bool ES_AAC::ParseLATMAudioMuxElement(CBitstream *bs)
+bool AudioStreamAAC::ParseLATMAudioMuxElement(CBitstream *bs)
 {
   if (!bs->readBits1())
     ReadStreamMuxConfig(bs);
@@ -196,7 +196,7 @@ bool ES_AAC::ParseLATMAudioMuxElement(CBitstream *bs)
   return true;
 }
 
-void ES_AAC::ReadStreamMuxConfig(CBitstream *bs)
+void AudioStreamAAC::ReadStreamMuxConfig(CBitstream *bs)
 {
   int AudioMuxVersion = bs->readBits(1);
   m_AudioMuxVersion_A = 0;
@@ -258,7 +258,7 @@ void ES_AAC::ReadStreamMuxConfig(CBitstream *bs)
   m_Configured = true;
 }
 
-void ES_AAC::ReadAudioSpecificConfig(CBitstream *bs)
+void AudioStreamAAC::ReadAudioSpecificConfig(CBitstream *bs)
 {
   int aot = bs->readBits(5);
   if (aot == 31)
@@ -293,7 +293,7 @@ void ES_AAC::ReadAudioSpecificConfig(CBitstream *bs)
     bs->skipBits(1);    // ext3_flag
 }
 
-void ES_AAC::Reset()
+void AudioStreamAAC::Reset()
 {
   ElementaryStream::Reset();
   m_Configured = false;

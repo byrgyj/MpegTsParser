@@ -1,4 +1,4 @@
-#include "ES_h264.h"
+#include "VideoStreamAVC.h"
 #include "bitstream.h"
 #include "debug.h"
 
@@ -26,7 +26,7 @@ static const int h264_lev2cpbsize[][2] =
   {-1, -1},
 };
 
-ES_h264::ES_h264(uint16_t pes_pid)
+VideoStreamAVC::VideoStreamAVC(uint16_t pes_pid)
  : ElementaryStream(pes_pid) {
   m_Height                      = 0;
   m_Width                       = 0;
@@ -44,10 +44,10 @@ ES_h264::ES_h264(uint16_t pes_pid)
   Reset();
 }
 
-ES_h264::~ES_h264(){
+VideoStreamAVC::~VideoStreamAVC(){
 }
 
-int64_t ES_h264::parse(const TsPacket *pkt){
+int64_t VideoStreamAVC::parse(const TsPacket *pkt){
   size_t frame_ptr = es_consumed;
   size_t p = es_parsed;
   uint32_t startcode = m_StartCode;
@@ -99,7 +99,7 @@ int64_t ES_h264::parse(const TsPacket *pkt){
   return 0;
 }
 
-void ES_h264::Reset()
+void VideoStreamAVC::Reset()
 {
   ElementaryStream::Reset();
   m_StartCode = 0xffffffff;
@@ -109,7 +109,7 @@ void ES_h264::Reset()
   memset(&m_streamData, 0, sizeof(m_streamData));
 }
 
-int ES_h264::parseAVC(uint32_t startcode, int buf_ptr, bool &complete)
+int VideoStreamAVC::parseAVC(uint32_t startcode, int buf_ptr, bool &complete)
 {
   int len = es_len - buf_ptr;
   uint8_t *buf = es_buf + buf_ptr;
@@ -247,7 +247,7 @@ int ES_h264::parseAVC(uint32_t startcode, int buf_ptr, bool &complete)
   return 0;
 }
 
-bool ES_h264::parsePPS(uint8_t *buf, int len)
+bool VideoStreamAVC::parsePPS(uint8_t *buf, int len)
 {
   CBitstream bs(buf, len*8);
 
@@ -259,7 +259,7 @@ bool ES_h264::parsePPS(uint8_t *buf, int len)
   return true;
 }
 
-bool ES_h264::parseSliceHeader(uint8_t *buf, int len, h264_private::VCL_NAL &vcl)
+bool VideoStreamAVC::parseSliceHeader(uint8_t *buf, int len, h264_private::VCL_NAL &vcl)
 {
   CBitstream bs(buf, len*8);
 
@@ -324,7 +324,7 @@ bool ES_h264::parseSliceHeader(uint8_t *buf, int len, h264_private::VCL_NAL &vcl
   return true;
 }
 
-bool ES_h264::parseSPS(uint8_t *buf, int len)
+bool VideoStreamAVC::parseSPS(uint8_t *buf, int len)
 {
   CBitstream bs(buf, len*8);
   unsigned int tmp, frame_mbs_only;
@@ -516,7 +516,7 @@ bool ES_h264::parseSPS(uint8_t *buf, int len)
   return true;
 }
 
-bool ES_h264::IsFirstVclNal(h264_private::VCL_NAL &vcl)
+bool VideoStreamAVC::IsFirstVclNal(h264_private::VCL_NAL &vcl)
 {
   if (m_streamData.vcl_nal.frame_num != vcl.frame_num)
     return true;

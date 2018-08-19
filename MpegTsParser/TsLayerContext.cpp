@@ -1,12 +1,8 @@
 #include "TsLayerContext.h"
-#include "ES_MPEGVideo.h"
-#include "ES_MPEGAudio.h"
-#include "ES_h264.h"
-#include "ES_hevc.h"
-#include "ES_AAC.h"
-#include "ES_AC3.h"
-#include "ES_Subtitle.h"
-#include "ES_Teletext.h"
+#include "VideoStreamAVC.h"
+#include "VideoStreamHEVC.h"
+#include "AudioStreamAAC.h"
+#include "AudioStreamAC3.h"
 #include "debug.h"
 
 #include <cassert>
@@ -593,34 +589,20 @@ TSDemux::ElementaryStream *TsLayerContext::createElementaryStream(STREAM_TYPE st
     if (streamType != STREAM_TYPE_UNKNOWN) {
         ElementaryStream *es = NULL;
         switch (streamType){
-        case STREAM_TYPE_VIDEO_MPEG1:
-        case STREAM_TYPE_VIDEO_MPEG2:
-            es = new ES_MPEG2Video(pid);
-            break;
-        case STREAM_TYPE_AUDIO_MPEG1:
-        case STREAM_TYPE_AUDIO_MPEG2:
-            es = new ES_MPEG2Audio(pid);
-            break;
         case STREAM_TYPE_AUDIO_AAC:
         case STREAM_TYPE_AUDIO_AAC_ADTS:
         case STREAM_TYPE_AUDIO_AAC_LATM:
-            es = new ES_AAC(pid);
+            es = new AudioStreamAAC(pid);
             break;
         case STREAM_TYPE_VIDEO_H264:
-            es = new ES_h264(pid);
+            es = new VideoStreamAVC(pid);
             break;
         case STREAM_TYPE_VIDEO_HEVC:
-            es = new ES_hevc(pid);
+            es = new VideoStreamHEVC(pid);
             break;
         case STREAM_TYPE_AUDIO_AC3:
         case STREAM_TYPE_AUDIO_EAC3:
-            es = new ES_AC3(pid);
-            break;
-        case STREAM_TYPE_DVB_SUBTITLE:
-            es = new ES_Subtitle(pid);
-            break;
-        case STREAM_TYPE_DVB_TELETEXT:
-            es = new ES_Teletext(pid);
+            es = new AudioStreamAC3(pid);
             break;
         default:
             es = new ElementaryStream(pid);
@@ -1303,40 +1285,24 @@ int TsLayerContext::parsePmt(const unsigned char *data, const unsigned char *dat
             ElementaryStream* es;
             switch (stream_type)
             {
-            case STREAM_TYPE_VIDEO_MPEG1:
-            case STREAM_TYPE_VIDEO_MPEG2:
-                //mVideoPid = pes_pid;
-                es = new ES_MPEG2Video(pes_pid);
-                break;
-            case STREAM_TYPE_AUDIO_MPEG1:
-            case STREAM_TYPE_AUDIO_MPEG2:
-                //mAudioPid = pes_pid;
-                es = new ES_MPEG2Audio(pes_pid);
-                break;
             case STREAM_TYPE_AUDIO_AAC:
             case STREAM_TYPE_AUDIO_AAC_ADTS:
             case STREAM_TYPE_AUDIO_AAC_LATM:
                 //mAudioPid = pes_pid;
-                es = new ES_AAC(pes_pid);
+                es = new AudioStreamAAC(pes_pid);
                 break;
             case STREAM_TYPE_VIDEO_H264:
                 //mVideoPid = pes_pid;
-                es = new ES_h264(pes_pid);
+                es = new VideoStreamAVC(pes_pid);
                 break;
             case STREAM_TYPE_VIDEO_HEVC:
                 //mVideoPid = pes_pid;
-                es = new ES_hevc(pes_pid);
+                es = new VideoStreamHEVC(pes_pid);
                 break;
             case STREAM_TYPE_AUDIO_AC3:
             case STREAM_TYPE_AUDIO_EAC3:
                 mAudioPid = pes_pid;
-                es = new ES_AC3(pes_pid);
-                break;
-            case STREAM_TYPE_DVB_SUBTITLE:
-                es = new ES_Subtitle(pes_pid);
-                break;
-            case STREAM_TYPE_DVB_TELETEXT:
-                es = new ES_Teletext(pes_pid);
+                es = new AudioStreamAC3(pes_pid);
                 break;
             default:
                 // No parser: pass-through

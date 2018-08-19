@@ -20,7 +20,7 @@
  *
  */
 
-#include "ES_hevc.h"
+#include "VideoStreamHEVC.h"
 #include "bitstream.h"
 #include "debug.h"
 
@@ -28,7 +28,7 @@
 
 using namespace TSDemux;
 
-ES_hevc::ES_hevc(uint16_t pes_pid)
+VideoStreamHEVC::VideoStreamHEVC(uint16_t pes_pid)
  : ElementaryStream(pes_pid)
 {
   m_Height            = 0;
@@ -43,11 +43,11 @@ ES_hevc::ES_hevc(uint16_t pes_pid)
   Reset();
 }
 
-ES_hevc::~ES_hevc()
+VideoStreamHEVC::~VideoStreamHEVC()
 {
 }
 
-void ES_hevc::Parse(STREAM_PKT* pkt)
+void VideoStreamHEVC::Parse(STREAM_PKT* pkt)
 {
   if (es_parsed + 10 > es_len) // 2*startcode + header + trail bits
     return;
@@ -111,7 +111,7 @@ void ES_hevc::Parse(STREAM_PKT* pkt)
   }
 }
 
-void ES_hevc::Reset()
+void VideoStreamHEVC::Reset()
 {
   ElementaryStream::Reset();
   m_StartCode = 0xffffffff;
@@ -122,7 +122,7 @@ void ES_hevc::Reset()
 }
 
 
-void ES_hevc::Parse_HEVC(int buf_ptr, unsigned int NumBytesInNalUnit, bool &complete)
+void VideoStreamHEVC::Parse_HEVC(int buf_ptr, unsigned int NumBytesInNalUnit, bool &complete)
 {
   uint8_t *buf = es_buf + buf_ptr;
   uint16_t header;
@@ -242,7 +242,7 @@ void ES_hevc::Parse_HEVC(int buf_ptr, unsigned int NumBytesInNalUnit, bool &comp
   }
 }
 
-void ES_hevc::Parse_PPS(uint8_t *buf, int len)
+void VideoStreamHEVC::Parse_PPS(uint8_t *buf, int len)
 {
   CBitstream bs(buf, len*8, true);
 
@@ -252,7 +252,7 @@ void ES_hevc::Parse_PPS(uint8_t *buf, int len)
   m_streamData.pps[pps_id].dependent_slice_segments_enabled_flag = bs.readBits(1);
 }
 
-void ES_hevc::Parse_SLH(uint8_t *buf, int len, HDR_NAL hdr, hevc_private::VCL_NAL &vcl)
+void VideoStreamHEVC::Parse_SLH(uint8_t *buf, int len, HDR_NAL hdr, hevc_private::VCL_NAL &vcl)
 {
   CBitstream bs(buf, len*8, true);
 
@@ -267,7 +267,7 @@ void ES_hevc::Parse_SLH(uint8_t *buf, int len, HDR_NAL hdr, hevc_private::VCL_NA
 }
 
 // 7.3.2.2.1 General sequence parameter set RBSP syntax
-void ES_hevc::Parse_SPS(uint8_t *buf, int len, HDR_NAL hdr)
+void VideoStreamHEVC::Parse_SPS(uint8_t *buf, int len, HDR_NAL hdr)
 {
   CBitstream bs(buf, len*8, true);
   unsigned int i;
@@ -310,7 +310,7 @@ void ES_hevc::Parse_SPS(uint8_t *buf, int len, HDR_NAL hdr)
   m_PixelAspect.num = 1;
 }
 
-bool ES_hevc::IsFirstVclNal(hevc_private::VCL_NAL &vcl)
+bool VideoStreamHEVC::IsFirstVclNal(hevc_private::VCL_NAL &vcl)
 {
   if (m_streamData.vcl_nal.pic_parameter_set_id != vcl.pic_parameter_set_id)
     return true;

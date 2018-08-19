@@ -1,22 +1,3 @@
-/*
- *      Copyright (C) 2005-2013 Team XBMC
- *      http://www.xbmc.org
- *
- *  This Program is free software; you can redistribute it and/or modify
- *  it under the terms of the GNU General Public License as published by
- *  the Free Software Foundation; either version 2, or (at your option)
- *  any later version.
- *
- *  This Program is distributed in the hope that it will be useful,
- *  but WITHOUT ANY WARRANTY; without even the implied warranty of
- *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
- *  GNU General Public License for more details.
- *
- *  You should have received a copy of the GNU General Public License
- *  along with XBMC; see the file COPYING.  If not, see
- *  <http://www.gnu.org/licenses/>.
- *
- */
 
 #ifndef ES_H264_H
 #define ES_H264_H
@@ -25,7 +6,7 @@
 
 namespace TSDemux
 {
-  class ES_h264 : public ElementaryStream
+  class VideoStreamAVC : public ElementaryStream
   {
   private:
     typedef struct h264_private
@@ -105,8 +86,8 @@ namespace TSDemux
     bool IsFirstVclNal(h264_private::VCL_NAL &vcl);
 
   public:
-    ES_h264(uint16_t pes_pid);
-    virtual ~ES_h264();
+    VideoStreamAVC(uint16_t pes_pid);
+    virtual ~VideoStreamAVC();
 
     virtual int64_t parse(const TsPacket*pkt);
     //virtual void Parse(STREAM_PKT* pkt);
