@@ -4,7 +4,7 @@
 #include <set>
 #include "elementaryStream.h"
 
-namespace GYJ{
+namespace QIYI{
 
 
 enum printMediaType { PRINT_MEDIA_VIDEO, PRINT_MEDIA_AUDIO, PRINT_MEDIA_ALL };
@@ -17,10 +17,10 @@ typedef struct printParam{
 }printParam;
 
 typedef struct tsParam {
-    tsParam(std::string name, int64_t startTime, std::list<TSDemux::STREAM_PKT*> *datas) : fileName(name), tsStartTime(startTime), packets(datas) {}
+    tsParam(std::string name, int64_t startTime, std::list<QIYI::STREAM_PKT*> *datas) : fileName(name), tsStartTime(startTime), packets(datas) {}
     std::string fileName;
     int64_t tsStartTime;
-    std::list<TSDemux::STREAM_PKT*> *packets;
+    std::list<QIYI::STREAM_PKT*> *packets;
 }tsParam;
 
 class ParseredDataContainer
@@ -29,7 +29,7 @@ public:
     explicit ParseredDataContainer(printParam pp);
     ~ParseredDataContainer();
 
-    void addData(std::list<TSDemux::STREAM_PKT*> *lstData, int64_t index);
+    void addData(std::list<QIYI::STREAM_PKT*> *lstData, int64_t index);
     void addData(int64_t startTime, const tsParam *tsInfo);
     void printInfo();
     void printCurrentList(const tsParam *tsSegment);
@@ -40,7 +40,7 @@ private:
     bool checkPrintPcr(int currentIndex, int totalPkt);
 
     void printTimeStamp(const tsParam *tsSegment);
-    void dispatchPackets(const std::list<TSDemux::STREAM_PKT*> *lst);
+    void dispatchPackets(const std::list<QIYI::STREAM_PKT*> *lst);
     void printFrameDistance(std::set<int64_t> &Distances, std::string tag);
 
     void processVideo();
@@ -51,7 +51,7 @@ private:
     int roundDouble(double number);
 private:
 
-    std::map<int64_t, std::list<TSDemux::STREAM_PKT*>*> mParserdData;
+    std::map<int64_t, std::list<QIYI::STREAM_PKT*>*> mParserdData;
     std::map<int64_t, const tsParam*> mTsSegments;
     std::set<int64_t> mVideoFrameDistanceSets;
 
@@ -68,10 +68,10 @@ private:
     uint64_t mLastPCR;
     char mTimeBuffer[128];
 
-    typedef std::map<int64_t, TSDemux::STREAM_PKT*>::iterator mapIndex;
-    std::map<int64_t, TSDemux::STREAM_PKT*> mVideoData;
-    std::map<int64_t, TSDemux::STREAM_PKT*> mAudioData;
-    std::map<int64_t, TSDemux::STREAM_PKT*> mPcrData;
+    typedef std::map<int64_t, QIYI::STREAM_PKT*>::iterator mapIndex;
+    std::map<int64_t, QIYI::STREAM_PKT*> mVideoData;
+    std::map<int64_t, QIYI::STREAM_PKT*> mAudioData;
+    std::map<int64_t, QIYI::STREAM_PKT*> mPcrData;
 };
 
 }

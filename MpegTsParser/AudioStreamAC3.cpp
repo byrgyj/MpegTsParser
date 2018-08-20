@@ -23,7 +23,7 @@
 
 #include <algorithm>      // for max
 
-using namespace TSDemux;
+using namespace QIYI;
 
 #define AC3_HEADER_SIZE 7
 

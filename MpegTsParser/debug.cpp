@@ -79,22 +79,22 @@ static inline void __dbg(debug_ctx_t* ctx, int level, const char* fmt, va_list a
   }
 }
 
-void TSDemux::DBGLevel(int l)
+void QIYI::DBGLevel(int l)
 {
   __dbg_setlevel(&debug_ctx, l);
 }
 
-void TSDemux::DBGAll()
+void QIYI::DBGAll()
 {
   __dbg_setlevel(&debug_ctx, DEMUX_DBG_ALL);
 }
 
-void TSDemux::DBGNone()
+void QIYI::DBGNone()
 {
   __dbg_setlevel(&debug_ctx, DEMUX_DBG_NONE);
 }
 
-void TSDemux::DBG(int level, const char* fmt, ...)
+void QIYI::DBG(int level, const char* fmt, ...)
 {
   va_list ap;
 
@@ -103,7 +103,7 @@ void TSDemux::DBG(int level, const char* fmt, ...)
   va_end(ap);
 }
 
-void TSDemux::SetDBGMsgCallback(void (*msgcb)(int level, char*))
+void QIYI::SetDBGMsgCallback(void (*msgcb)(int level, char*))
 {
   debug_ctx.msg_callback = msgcb;
 }

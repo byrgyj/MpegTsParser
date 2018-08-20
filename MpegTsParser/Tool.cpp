@@ -2,7 +2,7 @@
 #include "Tool.h"
 #include <io.h>
 
-namespace GYJ {
+namespace QIYI {
 
     std::string getFileNameFromPath(const std::string &filePath) {
         if (filePath.empty()){
@@ -65,5 +65,22 @@ namespace GYJ {
         } while (_findnext(handle, &findData) == 0);
 
         _findclose(handle); 
+    }
+
+    uint8_t av_rb8(const unsigned char *data) {
+        uint8_t v = *(uint8_t*)data;
+        return v;
+    }
+
+    uint16_t av_rb16(const unsigned char *data) {
+        uint16_t v = av_rb8(data) << 8;
+        v |= av_rb8(data+1);
+        return v;
+    }
+
+    uint32_t av_rd32(const unsigned char *data) {
+        uint32_t v = av_rb16(data) << 16;
+        v |= av_rb16(data + 2);
+        return v;
     }
 }

@@ -40,7 +40,7 @@
 #define TS_CHECK_MAX_SCORE          10
 
 
-namespace TSDemux
+namespace QIYI
 {
   class TSDemuxer
   {
@@ -79,7 +79,7 @@ namespace TSDemux
     void ResetPackets();
 
     const Packet *getCurrentPacket() { return mCurrentPkt; }
-    std::list<TSDemux::STREAM_PKT*> *getMediaPkts() { return mMediaPkts; }
+    std::list<QIYI::STREAM_PKT*> *getMediaPkts() { return mMediaPkts; }
 
     // TS parser
     int tsSync();
@@ -89,17 +89,17 @@ namespace TSDemux
     uint64_t GetPosition() const;
 
     void destroyStream();
-    TSDemux::TsPacket *parserTsPacket();
+    QIYI::TsPacket *parserTsPacket();
     int parserTsPayload();
     int parsePATSection(const uint8_t *data, int dataLength);
     int parsePMTSection(const uint8_t *data, int dataLength);
-    int64_t processOneFrame(std::list<const TsPacket*> &packets, TSDemux::STREAM_PKT *pkt);
+    int64_t processOneFrame(std::list<const TsPacket*> &packets, QIYI::STREAM_PKT *pkt);
     int parsePESPacket(TsPacket *packet);
     int pushTsPacket(const TsPacket *pkt);
-    TSDemux::ElementaryStream *createElementaryStream(STREAM_TYPE streamType, int pid);
+    void processLastFrame();
+    QIYI::ElementaryStream *createElementaryStream(STREAM_TYPE streamType, int pid);
 
     int ProcessTSPacket();
-    int ProcessTSPayload();
 
     int64_t getTsStartTimeStamp() { return mTsStartTimeStamp; }
   private:
@@ -108,22 +108,11 @@ namespace TSDemux
 
     int configure_ts();
     static STREAM_TYPE get_stream_type(uint8_t pes_type);
-    static uint8_t av_rb8(const unsigned char* p);
-    static uint16_t av_rb16(const unsigned char* p);
-    static uint32_t av_rb32(const unsigned char* p);
     static uint64_t decode_pts(const unsigned char* p);
-     static STREAM_INFO parse_pes_descriptor(const unsigned char* p, size_t len, STREAM_TYPE* st);
-    void clear_pmt();
-    void clear_pes(uint16_t channel);
-    int parse_ts_psi();
-    int parse_ts_pes();
-
-    int parsePat(const unsigned char *data, const unsigned char *dataEnd);
-    int parsePmt(const unsigned char *data, const unsigned char *dataEnd);
+    static STREAM_INFO parse_pes_descriptor(const unsigned char* p, size_t len, STREAM_TYPE* st);
 
     // Critical section
     mutable PLATFORM::CMutex mutex;
-
     // AV stream owner
     TSDemuxer* m_demux;
 
@@ -134,7 +123,6 @@ namespace TSDemux
     int mPmtPid;
 
     std::list<const TsPacket*> mMediaDatas;
-
     int mFileIndex;
 
     // Raw packet buffer
@@ -148,10 +136,10 @@ namespace TSDemux
     uint16_t channel;
     int64_t mTsStartTimeStamp; // first video packet dts;
     std::map<uint16_t, Packet> mTsTypePkts;
-    std::list<TSDemux::STREAM_PKT*> *mMediaPkts;
+    std::list<QIYI::STREAM_PKT*> *mMediaPkts;
 
-    TSDemux::ElementaryStream  *mVideoStream;
-    TSDemux::ElementaryStream  *mAudioStream;
+    QIYI::ElementaryStream  *mVideoStream;
+    QIYI::ElementaryStream  *mAudioStream;
 
     // Packet context
     uint16_t pid;

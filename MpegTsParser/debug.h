@@ -30,7 +30,7 @@
 #define DEMUX_DBG_PARSE  4
 #define DEMUX_DBG_ALL    6
 
-namespace TSDemux
+namespace QIYI
 {
   void DBGLevel(int l);
   void DBGAll(void);

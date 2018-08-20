@@ -27,7 +27,7 @@
 #include <climits>    // for INT_MAX
 #include <cerrno>
 
-using namespace TSDemux;
+using namespace QIYI;
 
 ElementaryStream::ElementaryStream(uint16_t pes_pid)
   : pid(pes_pid)
@@ -133,14 +133,6 @@ const char* ElementaryStream::GetStreamCodecName(STREAM_TYPE stream_type)
 {
   switch (stream_type)
   {
-    case STREAM_TYPE_VIDEO_MPEG1:
-      return "mpeg1video";
-    case STREAM_TYPE_VIDEO_MPEG2:
-      return "mpeg2video";
-    case STREAM_TYPE_AUDIO_MPEG1:
-      return "mp1";
-    case STREAM_TYPE_AUDIO_MPEG2:
-      return "mp2";
     case STREAM_TYPE_AUDIO_AAC:
       return "aac";
     case STREAM_TYPE_AUDIO_AAC_ADTS:
@@ -155,14 +147,10 @@ const char* ElementaryStream::GetStreamCodecName(STREAM_TYPE stream_type)
       return "ac3";
     case STREAM_TYPE_AUDIO_EAC3:
       return "eac3";
-    case STREAM_TYPE_DVB_TELETEXT:
-      return "teletext";
     case STREAM_TYPE_DVB_SUBTITLE:
       return "dvbsub";
     case STREAM_TYPE_VIDEO_MPEG4:
       return "mpeg4video";
-    case STREAM_TYPE_VIDEO_VC1:
-      return "vc1";
     case STREAM_TYPE_AUDIO_LPCM:
       return "lpcm";
     case STREAM_TYPE_AUDIO_DTS:

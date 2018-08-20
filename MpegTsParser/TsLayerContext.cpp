@@ -4,12 +4,13 @@
 #include "AudioStreamAAC.h"
 #include "AudioStreamAC3.h"
 #include "debug.h"
+#include "Tool.h"
 
 #include <cassert>
 
 #define MAX_RESYNC_SIZE         65536
 #define FREE_PTR(ptr) if (ptr != NULL) { delete ptr ;}
-using namespace TSDemux;
+using namespace QIYI;
 
 TsLayerContext::TsLayerContext(TSDemuxer* const demux, uint64_t pos, uint16_t channel, int fileIndex)
   : av_pos(pos)
@@ -38,7 +39,7 @@ TsLayerContext::TsLayerContext(TSDemuxer* const demux, uint64_t pos, uint16_t ch
   m_demux = demux;
   memset(mTsPktBuffer, 0, sizeof(mTsPktBuffer));
 
-  mMediaPkts = new std::list<TSDemux::STREAM_PKT*>;
+  mMediaPkts = new std::list<QIYI::STREAM_PKT*>;
 }
 
 TsLayerContext::~TsLayerContext() {
@@ -149,26 +150,6 @@ void TsLayerContext::ResetPackets()
 /////  MPEG-TS parser for the context
 /////
 
-uint8_t TsLayerContext::av_rb8(const unsigned char* p)
-{
-  uint8_t val = *(uint8_t*)p;
-  return val;
-}
-
-uint16_t TsLayerContext::av_rb16(const unsigned char* p)
-{
-  uint16_t val = av_rb8(p) << 8;
-  val |= av_rb8(p + 1);
-  return val;
-}
-
-uint32_t TsLayerContext::av_rb32(const unsigned char* p)
-{
-  uint32_t val = av_rb16(p) << 16;
-  val |= av_rb16(p + 2);
-  return val;
-}
-
 uint64_t TsLayerContext::decode_pts(const unsigned char* p)
 {
   uint64_t pts = (uint64_t)(av_rb8(p) & 0x0e) << 29 | (av_rb16(p + 1) >> 1) << 15 | av_rb16(p + 3) >> 1;
@@ -179,14 +160,6 @@ STREAM_TYPE TsLayerContext::get_stream_type(uint8_t pes_type)
 {
   switch (pes_type)
   {
-    case 0x01:
-      return STREAM_TYPE_VIDEO_MPEG1;
-    case 0x02:
-      return STREAM_TYPE_VIDEO_MPEG2;
-    case 0x03:
-      return STREAM_TYPE_AUDIO_MPEG1;
-    case 0x04:
-      return STREAM_TYPE_AUDIO_MPEG2;
     case 0x06:
       return STREAM_TYPE_PRIVATE_DATA;
     case 0x0f:
@@ -198,8 +171,6 @@ STREAM_TYPE TsLayerContext::get_stream_type(uint8_t pes_type)
       return STREAM_TYPE_VIDEO_H264;
     case 0x24:
       return STREAM_TYPE_VIDEO_HEVC;
-    case 0xea:
-      return STREAM_TYPE_VIDEO_VC1;
     case 0x80:
       return STREAM_TYPE_AUDIO_LPCM;
     case 0x81:
@@ -465,7 +436,7 @@ int TsLayerContext::parsePMTSection(const uint8_t *data, int dataLength) {
      return 0;
 }
 
-int64_t TsLayerContext::processOneFrame(std::list<const TsPacket*> &packets, TSDemux::STREAM_PKT *pkt) {
+int64_t TsLayerContext::processOneFrame(std::list<const TsPacket*> &packets, QIYI::STREAM_PKT *pkt) {
     int64_t frameDuration = 0;
     if (packets.empty()) {
         return frameDuration;
@@ -553,27 +524,25 @@ int TsLayerContext::pushTsPacket(const TsPacket *pkt) {
 
     if (pkt->pid == mVideoPid || pkt->pid == mAudioPid) {
         ElementaryStream *es = pkt->pid == mVideoPid ? mVideoStream :mAudioStream;
-        if (pkt->payloadUnitStart) {     
-            int64_t frameDuration = 0;
-          
+        if (pkt->payloadUnitStart) {               
 
-            TSDemux::STREAM_PKT *curPkt = NULL;
-            std::list<TSDemux::STREAM_PKT*>::const_reverse_iterator it = mMediaPkts->rbegin();
+            QIYI::STREAM_PKT *curPkt = NULL;
+            std::list<QIYI::STREAM_PKT*>::const_reverse_iterator it = mMediaPkts->rbegin();
             if (it != mMediaPkts->rend()) {
                 curPkt = *it;
             }
 
             if (!mMediaDatas.empty()) {
-                frameDuration = processOneFrame(mMediaDatas, curPkt);
+               processOneFrame(mMediaDatas, curPkt);
             }
 
-            TSDemux::STREAM_PKT *resultPkt = new TSDemux::STREAM_PKT();
+            QIYI::STREAM_PKT *resultPkt = new QIYI::STREAM_PKT();
             if (resultPkt != NULL) {
                 resultPkt->pid = pkt->pid;
                 resultPkt->pts = pkt->pes.pts;
                 resultPkt->dts = pkt->pes.dts;
                 resultPkt->pcr = pkt->pcr;
-                resultPkt->duration = frameDuration;
+                resultPkt->duration = curPkt != NULL ? curPkt->duration : 0;
                 mMediaPkts->push_back(resultPkt);
             }
         }
@@ -585,7 +554,19 @@ int TsLayerContext::pushTsPacket(const TsPacket *pkt) {
     return 0;
 }
 
-TSDemux::ElementaryStream *TsLayerContext::createElementaryStream(STREAM_TYPE streamType, int pid) {
+void TsLayerContext::processLastFrame() {
+    QIYI::STREAM_PKT *curPkt = NULL;
+    std::list<QIYI::STREAM_PKT*>::const_reverse_iterator it = mMediaPkts->rbegin();
+    if (it != mMediaPkts->rend()) {
+        curPkt = *it;
+    }
+
+    if (!mMediaDatas.empty()) {
+        processOneFrame(mMediaDatas, curPkt);
+    }
+}
+
+QIYI::ElementaryStream *TsLayerContext::createElementaryStream(STREAM_TYPE streamType, int pid) {
     if (streamType != STREAM_TYPE_UNKNOWN) {
         ElementaryStream *es = NULL;
         switch (streamType){
@@ -765,573 +746,4 @@ int TsLayerContext::ProcessTSPacket()
     ret = AVCONTEXT_STREAM_PID_DATA;
   }
   return ret;
-}
-
-/*
- * Process payload of packet depending of its type
- *
- * PACKET_TYPE_PSI -> parse_ts_psi()
- * PACKET_TYPE_PES -> parse_ts_pes()
- */
-int TsLayerContext::ProcessTSPayload()
-{
-  PLATFORM::CLockObject lock(mutex);
-
-  if (!this->mCurrentPkt)
-    return AVCONTEXT_CONTINUE;
-
-  int ret = 0;
-  switch (mCurrentPkt->packet_type)
-  {
-    case PACKET_TYPE_PSI:
-      ret = parse_ts_psi();
-      break;
-    case PACKET_TYPE_PES:
-      ret = parse_ts_pes();
-      break;
-    case PACKET_TYPE_UNKNOWN:
-      break;
-  }
-
-  return ret;
-}
-
-void TsLayerContext::clear_pmt()
-{
-  DBG(DEMUX_DBG_DEBUG, "%s\n", __FUNCTION__);
-  std::vector<uint16_t> pid_list;
-  for (std::map<uint16_t, Packet>::iterator it = mTsTypePkts.begin(); it != mTsTypePkts.end(); ++it)
-  {
-    if (it->second.packet_type == PACKET_TYPE_PSI && it->second.packet_table.table_id == 0x02)
-    {
-      pid_list.push_back(it->first);
-      clear_pes(it->second.channel);
-    }
-  }
-  for (std::vector<uint16_t>::iterator it = pid_list.begin(); it != pid_list.end(); ++it)
-    mTsTypePkts.erase(*it);
-}
-
-void TsLayerContext::clear_pes(uint16_t channel)
-{
-  DBG(DEMUX_DBG_DEBUG, "%s(%u)\n", __FUNCTION__, channel);
-  std::vector<uint16_t> pid_list;
-  for (std::map<uint16_t, Packet>::iterator it = mTsTypePkts.begin(); it != mTsTypePkts.end(); ++it)
-  {
-    if (it->second.packet_type == PACKET_TYPE_PES && it->second.channel == channel)
-      pid_list.push_back(it->first);
-  }
-  for (std::vector<uint16_t>::iterator it = pid_list.begin(); it != pid_list.end(); ++it)
-    mTsTypePkts.erase(*it);
-}
-
-/*
- * Parse PSI payload
- *
- * returns:
- *
- * AVCONTEXT_CONTINUE
- *   Parse completed. Continue to next packet
- *
- * AVCONTEXT_PROGRAM_CHANGE
- *   Parse completed. The program has changed. All streams are resetted and
- *   streaming flag is set to false. Client must inspect streams MAP and enable
- *   streaming for those recognized.
- *
- * AVCONTEXT_TS_ERROR
- *  Parsing error !
- */
-int TsLayerContext::parse_ts_psi()
-{
-  size_t len;
-
-  if (!mHasPayload || !mTsPayload || !mPayloadLen || !mCurrentPkt)
-    return AVCONTEXT_CONTINUE;
-
-  if (mPayloadUnitStart){
-    // Reset wait for unit start
-    mCurrentPkt->wait_unit_start = false;
-    // pointer field present
-    len = (size_t)av_rb8(mTsPayload);
-    if (len > mPayloadLen)
-    {
-#if defined(TSDEMUX_DEBUG)
-      assert(false);
-#else
-      return AVCONTEXT_TS_ERROR;
-#endif
-    }
-
-    // table ID
-    uint8_t table_id = av_rb8(mTsPayload + 1);
-
-    // table length
-    len = (size_t)av_rb16(mTsPayload + 2);
-    if ((len & 0x3000) != 0x3000)
-    {
-#if defined(TSDEMUX_DEBUG)
-      assert(false);
-#else
-      return AVCONTEXT_TS_ERROR;
-#endif
-    }
-    len &= 0x0fff;
-
-    mCurrentPkt->packet_table.Reset();
-
-    size_t n = mPayloadLen - 4;
-    memcpy(mCurrentPkt->packet_table.buf, mTsPayload + 4, n);
-    mCurrentPkt->packet_table.table_id = table_id;
-    mCurrentPkt->packet_table.offset = n;
-    mCurrentPkt->packet_table.len = len;
-    // check for incomplete section
-    if (mCurrentPkt->packet_table.offset < mCurrentPkt->packet_table.len)
-      return AVCONTEXT_CONTINUE;
-  }else{
-    // next part of PSI
-    if (mCurrentPkt->packet_table.offset == 0)
-    {
-#if defined(TSDEMUX_DEBUG)
-      assert(false);
-#else
-      return AVCONTEXT_TS_ERROR;
-#endif
-    }
-
-    if ((mPayloadLen + mCurrentPkt->packet_table.offset) > TABLE_BUFFER_SIZE)
-    {
-#if defined(TSDEMUX_DEBUG)
-      assert(false);
-#else
-      return AVCONTEXT_TS_ERROR;
-#endif
-    }
-    memcpy(mCurrentPkt->packet_table.buf + mCurrentPkt->packet_table.offset, mTsPayload, mPayloadLen);
-    mCurrentPkt->packet_table.offset += mPayloadLen;
-    // check for incomplete section
-    if (mCurrentPkt->packet_table.offset < mCurrentPkt->packet_table.len)
-      return AVCONTEXT_CONTINUE;
-  }
-
-  // now entire table is filled
-  const unsigned char* psi = mCurrentPkt->packet_table.buf;
-  const unsigned char* end_psi = psi + mCurrentPkt->packet_table.len;
-
-  switch (mCurrentPkt->packet_table.table_id)
-  {
-    case 0x00: // parse PAT table
-      parsePat(psi, end_psi);
-      break;
-    case 0x02: // parse PMT table
-      return parsePmt(psi, end_psi);
-    default:
-      // CAT, NIT table
-      break;
-  }
-
-  return AVCONTEXT_CONTINUE;
-}
-
-STREAM_INFO TsLayerContext::parse_pes_descriptor(const unsigned char* p, size_t len, STREAM_TYPE* st)
-{
-  const unsigned char* desc_end = p + len;
-  STREAM_INFO si;
-  memset(&si, 0, sizeof(STREAM_INFO));
-
-  while (p < desc_end)
-  {
-    uint8_t desc_tag = av_rb8(p);
-    uint8_t desc_len = av_rb8(p + 1);
-    p += 2;
-    DBG(DEMUX_DBG_DEBUG, "%s: tag %.2x len %d\n", __FUNCTION__, desc_tag, desc_len);
-    switch (desc_tag)
-    {
-      case 0x02:
-      case 0x03:
-        break;
-      case 0x0a: /* ISO 639 language descriptor */
-        if (desc_len >= 4)
-        {
-          si.language[0] = av_rb8(p);
-          si.language[1] = av_rb8(p + 1);
-          si.language[2] = av_rb8(p + 2);
-          si.language[3] = 0;
-        }
-        break;
-      case 0x56: /* DVB teletext descriptor */
-        *st = STREAM_TYPE_DVB_TELETEXT;
-        break;
-      case 0x6a: /* DVB AC3 */
-      case 0x81: /* AC3 audio stream */
-        *st = STREAM_TYPE_AUDIO_AC3;
-        break;
-      case 0x7a: /* DVB enhanced AC3 */
-        *st = STREAM_TYPE_AUDIO_EAC3;
-        break;
-      case 0x7b: /* DVB DTS */
-        *st = STREAM_TYPE_AUDIO_DTS;
-        break;
-      case 0x7c: /* DVB AAC */
-        *st = STREAM_TYPE_AUDIO_AAC;
-        break;
-      case 0x59: /* subtitling descriptor */
-        if (desc_len >= 8)
-        {
-          /*
-           * Byte 4 is the subtitling_type field
-           * av_rb8(p + 3) & 0x10 : normal
-           * av_rb8(p + 3) & 0x20 : for the hard of hearing
-           */
-          *st = STREAM_TYPE_DVB_SUBTITLE;
-          si.language[0] = av_rb8(p);
-          si.language[1] = av_rb8(p + 1);
-          si.language[2] = av_rb8(p + 2);
-          si.language[3] = 0;
-          si.composition_id = (int)av_rb16(p + 4);
-          si.ancillary_id = (int)av_rb16(p + 6);
-        }
-        break;
-      case 0x05: /* registration descriptor */
-      case 0x1E: /* SL descriptor */
-      case 0x1F: /* FMC descriptor */
-      case 0x52: /* stream identifier descriptor */
-    default:
-      break;
-    }
-    p += desc_len;
-  }
-
-  return si;
-}
-
-/*
- * Parse PES payload
- *
- * returns:
- *
- * AVCONTEXT_CONTINUE
- *   Parse completed. When streaming is enabled for PID, data is appended to
- *   the frame buffer of corresponding elementary stream.
- *
- * AVCONTEXT_TS_ERROR
- *  Parsing error !
- */
-int TsLayerContext::parse_ts_pes()
-{
-  if (!mHasPayload|| !mTsPayload || !mPayloadLen || !mCurrentPkt)
-    return AVCONTEXT_CONTINUE;
-
-  if (!mCurrentPkt->stream)
-    return AVCONTEXT_CONTINUE;
-
-  if (mPayloadUnitStart)
-  {
-    // Wait for unit start: Reset frame buffer to clear old data
-    if (mCurrentPkt->wait_unit_start)
-    {
-      mCurrentPkt->stream->Reset();
-      mCurrentPkt->stream->p_dts = PTS_UNSET;
-      mCurrentPkt->stream->p_pts = PTS_UNSET;
-    }
-    mCurrentPkt->wait_unit_start = false;
-    mCurrentPkt->has_stream_data = false;
-    // Reset header table
-    mCurrentPkt->packet_table.Reset();
-    // Header len is at least 6 bytes. So getting 6 bytes first
-    mCurrentPkt->packet_table.len = 6;
-  }
-
-  // Position in the payload buffer. Start at 0
-  size_t pos = 0;
-
-  while (mCurrentPkt->packet_table.offset < mCurrentPkt->packet_table.len)
-  {
-    if (pos >= mPayloadLen)
-      return AVCONTEXT_CONTINUE;
-
-    size_t n = mCurrentPkt->packet_table.len - mCurrentPkt->packet_table.offset;
-
-    if (n > (mPayloadLen - pos))
-      n = mPayloadLen - pos;
-
-    memcpy(mCurrentPkt->packet_table.buf + mCurrentPkt->packet_table.offset, mTsPayload + pos, n);
-    mCurrentPkt->packet_table.offset += n;
-    pos += n;
-
-    if (mCurrentPkt->packet_table.offset == 6)
-    {
-      if (memcmp(mCurrentPkt->packet_table.buf, "\x00\x00\x01", 3) == 0)
-      {
-        uint8_t stream_id = av_rb8(mCurrentPkt->packet_table.buf + 3);
-        if (stream_id == 0xbd || (stream_id >= 0xc0 && stream_id <= 0xef))
-          mCurrentPkt->packet_table.len = 9;
-      }
-    }
-    else if (mCurrentPkt->packet_table.offset == 9)
-    {
-      mCurrentPkt->packet_table.len += av_rb8(mCurrentPkt->packet_table.buf + 8);
-    }
-  }
-
-  // parse header table
-  bool has_pts = false;
-
-  if (mCurrentPkt->packet_table.len >= 9)
-  {
-    uint8_t flags = av_rb8(mCurrentPkt->packet_table.buf + 7);
-
-    //mCurrentPkt->stream->frame_num++;
-    TSDemux::STREAM_PKT *curPkt = new TSDemux::STREAM_PKT;
-    curPkt->pid = mCurrentPkt->stream->pid;
-    switch (flags & 0xc0)
-    {
-      case 0x80: // PTS only
-      {
-        has_pts = true;
-
-        if (mCurrentPkt->packet_table.len >= 14)
-        {
-          uint64_t pts = decode_pts(mCurrentPkt->packet_table.buf + 9);
-          mCurrentPkt->stream->p_dts = mCurrentPkt->stream->c_dts;
-          mCurrentPkt->stream->p_pts = mCurrentPkt->stream->c_pts;
-          mCurrentPkt->stream->c_dts = mCurrentPkt->stream->c_pts = pts;
-        }
-        else
-        {
-          mCurrentPkt->stream->c_dts = mCurrentPkt->stream->c_pts = PTS_UNSET;
-        }
-      }
-      break;
-      case 0xc0: // PTS,DTS
-      {
-        has_pts = true;
-        if (mCurrentPkt->packet_table.len >= 19 )
-        {
-          uint64_t pts = decode_pts(mCurrentPkt->packet_table.buf + 9);
-          uint64_t dts = decode_pts(mCurrentPkt->packet_table.buf + 14);
-          int64_t d = (pts - dts) & PTS_MASK;
-          // more than two seconds of PTS/DTS delta, probably corrupt
-          mCurrentPkt->stream->p_dts = mCurrentPkt->stream->c_dts;
-          mCurrentPkt->stream->p_pts = mCurrentPkt->stream->c_pts;
-          mCurrentPkt->stream->c_dts = dts;
-          mCurrentPkt->stream->c_pts = pts;
-        }
-        else
-        {
-          mCurrentPkt->stream->c_dts = mCurrentPkt->stream->c_pts = PTS_UNSET;
-        }
-      }
-      break;
-    }
-    mCurrentPkt->packet_table.Reset();
-
-    curPkt->dts = mCurrentPkt->stream->c_dts;
-    curPkt->pts = mCurrentPkt->stream->c_pts;
-    curPkt->pcr = mCurrentPkt->pcr;
-  }
-
-  if (mCurrentPkt->streaming)
-  {
-    const unsigned char* data = mTsPayload + pos;
-    size_t len = mPayloadLen - pos;
-    mCurrentPkt->stream->Append(data, len, has_pts);
-  }
-
-  return AVCONTEXT_CONTINUE;
-}
-
-int TsLayerContext::parsePat(const unsigned char *data, const unsigned char *dataEnd){
-    if (data == NULL || dataEnd == NULL) {
-        return -1;
-    }
-    // check if version number changed
-    uint16_t id = av_rb16(data);
-    // check if applicable
-    if ((av_rb8(data + 2) & 0x01) == 0)
-        return AVCONTEXT_CONTINUE;
-    // check if version number changed
-    uint8_t version = (av_rb8(data + 2) & 0x3e) >> 1;
-    if (id == mCurrentPkt->packet_table.id && version == mCurrentPkt->packet_table.version)
-        return AVCONTEXT_CONTINUE;
-    DBG(DEMUX_DBG_DEBUG, "%s: new PAT version %u\n", __FUNCTION__, version);
-
-    // clear old associated pmt
-    clear_pmt();
-
-    // parse new version of PAT
-    data += 5;
-
-    dataEnd -= 4; // CRC32
-
-    if (data >= dataEnd)
-    {
-#if defined(TSDEMUX_DEBUG)
-        assert(false);
-#else
-        return AVCONTEXT_TS_ERROR;
-#endif
-    }
-
-    int len = dataEnd - data;
-
-    if (len % 4)
-    {
-#if defined(TSDEMUX_DEBUG)
-        assert(false);
-#else
-        return AVCONTEXT_TS_ERROR;
-#endif
-    }
-
-    size_t n = len / 4;
-
-    for (size_t i = 0; i < n; i++, data += 4)
-    {
-        uint16_t channel = av_rb16(data);
-        uint16_t pmt_pid = av_rb16(data + 2);
-
-        pmt_pid &= 0x1fff;
-
-        DBG(DEMUX_DBG_DEBUG, "%s: PAT version %u: new PMT %.4x channel %u\n", __FUNCTION__, version, pmt_pid, channel);
-        if (this->channel == 0 || this->channel == channel)
-        {
-            Packet& pmt = mTsTypePkts[pmt_pid];
-            pmt.pid = pmt_pid;
-            pmt.packet_type = PACKET_TYPE_PSI;
-            pmt.channel = channel;
-            DBG(DEMUX_DBG_DEBUG, "%s: PAT version %u: register PMT %.4x channel %u\n", __FUNCTION__, version, pmt_pid, channel);
-        }
-    }
-    // PAT is processed. New version is available
-    mCurrentPkt->packet_table.id = id;
-    mCurrentPkt->packet_table.version = version;
-
-    return 0;
-}
-
-int TsLayerContext::parsePmt(const unsigned char *data, const unsigned char *dataEnd) {
-    if (data == NULL || dataEnd == NULL) {
-        return -4;
-    }
-    const unsigned char *psi = data;
-    const unsigned char *end_psi = dataEnd;
-
-    uint16_t id = av_rb16(psi);
-    // check if applicable
-    if ((av_rb8(psi + 2) & 0x01) == 0)
-        return AVCONTEXT_CONTINUE;
-    // check if version number changed
-    uint8_t version = (av_rb8(psi + 2) & 0x3e) >> 1;
-    if (id == mCurrentPkt->packet_table.id && version == mCurrentPkt->packet_table.version)
-        return AVCONTEXT_CONTINUE;
-    DBG(DEMUX_DBG_DEBUG, "%s: PMT(%.4x) version %u\n", __FUNCTION__, mCurrentPkt->pid, version);
-
-    // clear old pes
-    clear_pes(mCurrentPkt->channel);
-
-    // parse new version of PMT
-    psi += 7;
-
-    end_psi -= 4; // CRC32
-
-    if (psi >= end_psi)
-    {
-#if defined(TSDEMUX_DEBUG)
-        assert(false);
-#else
-        return AVCONTEXT_TS_ERROR;
-#endif
-    }
-
-    int len = (size_t)(av_rb16(psi) & 0x0fff);
-    psi += 2 + len;
-
-    while (psi < end_psi)
-    {
-        if (end_psi - psi < 5)
-        {
-#if defined(TSDEMUX_DEBUG)
-            assert(false);
-#else
-            return AVCONTEXT_TS_ERROR;
-#endif
-        }
-
-        uint8_t pes_type = av_rb8(psi);
-        uint16_t pes_pid = av_rb16(psi + 1);
-
-        pes_pid &= 0x1fff;
-
-        // len of descriptor section
-        len = (size_t)(av_rb16(psi + 3) & 0x0fff);
-        psi += 5;
-
-        // ignore unknown streams
-        STREAM_TYPE stream_type = get_stream_type(pes_type);
-        DBG(DEMUX_DBG_DEBUG, "%s: PMT(%.4x) version %u: new PES %.4x %s\n", __FUNCTION__,
-            mCurrentPkt->pid, version, pes_pid, ElementaryStream::GetStreamCodecName(stream_type));
-        if (stream_type != STREAM_TYPE_UNKNOWN)
-        {
-            Packet& pes = mTsTypePkts[pes_pid];
-            pes.pid = pes_pid;
-            pes.packet_type = PACKET_TYPE_PES;
-            pes.channel = mCurrentPkt->channel;
-            // Disable streaming by default
-            pes.streaming = false;
-            // Get basic stream infos from PMT table
-            STREAM_INFO stream_info;
-            stream_info = parse_pes_descriptor(psi, len, &stream_type);
-
-            ElementaryStream* es;
-            switch (stream_type)
-            {
-            case STREAM_TYPE_AUDIO_AAC:
-            case STREAM_TYPE_AUDIO_AAC_ADTS:
-            case STREAM_TYPE_AUDIO_AAC_LATM:
-                //mAudioPid = pes_pid;
-                es = new AudioStreamAAC(pes_pid);
-                break;
-            case STREAM_TYPE_VIDEO_H264:
-                //mVideoPid = pes_pid;
-                es = new VideoStreamAVC(pes_pid);
-                break;
-            case STREAM_TYPE_VIDEO_HEVC:
-                //mVideoPid = pes_pid;
-                es = new VideoStreamHEVC(pes_pid);
-                break;
-            case STREAM_TYPE_AUDIO_AC3:
-            case STREAM_TYPE_AUDIO_EAC3:
-                mAudioPid = pes_pid;
-                es = new AudioStreamAC3(pes_pid);
-                break;
-            default:
-                // No parser: pass-through
-                es = new ElementaryStream(pes_pid);
-                es->has_stream_info = true;
-                break;
-            }
-
-            es->stream_type = stream_type;
-            es->stream_info = stream_info;
-            pes.stream = es;
-            DBG(DEMUX_DBG_DEBUG, "%s: PMT(%.4x) version %u: register PES %.4x %s\n", __FUNCTION__,
-                mCurrentPkt->pid, version, pes_pid, es->GetStreamCodecName());
-        }
-        psi += len;
-    }
-
-    if (psi != end_psi)
-    {
-#if defined(TSDEMUX_DEBUG)
-        assert(false);
-#else
-        return AVCONTEXT_TS_ERROR;
-#endif
-    }
-
-    // PMT is processed. New version is available
-    mCurrentPkt->packet_table.id = id;
-    mCurrentPkt->packet_table.version = version;
-    return AVCONTEXT_PROGRAM_CHANGE;
-
 }

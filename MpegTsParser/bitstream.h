@@ -24,7 +24,7 @@
 #include <inttypes.h>
 #include <stddef.h>
 
-namespace TSDemux
+namespace QIYI
 {
   class CBitstream
   {

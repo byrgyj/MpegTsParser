@@ -4,7 +4,7 @@
 #define AV_BUFFER_SIZE          131072
 #define POSMAP_PTS_INTERVAL     270000LL
 
-class TsLayer : public TSDemux::TSDemuxer
+class TsLayer : public QIYI::TSDemuxer
 {
 public:
     TsLayer(FILE* file, uint16_t channel, int fileIndex);
@@ -12,15 +12,15 @@ public:
 
     int doDemux();
     const unsigned char* ReadAV(uint64_t pos, size_t n);
-    std::list<TSDemux::STREAM_PKT*> *getParseredData() { return mTsContext->getMediaPkts(); }
+    std::list<QIYI::STREAM_PKT*> *getParseredData() { return mTsContext->getMediaPkts(); }
     int64_t getTsStartTimeStamp() { return mTsContext->getTsStartTimeStamp(); }
 
 private:
-    bool getStreamData(TSDemux::STREAM_PKT* pkt);
+    bool getStreamData(QIYI::STREAM_PKT* pkt);
     void resetPosmap();
     void registerPMT();
     void showStreamInfo(uint16_t pid);
-    void writeStreamData(TSDemux::STREAM_PKT* pkt);
+    void writeStreamData(QIYI::STREAM_PKT* pkt);
 
 private:
     FILE* m_ifile;
@@ -35,7 +35,7 @@ private:
     unsigned char *mBufferEnd;      ///< raw data end in buffer
 
     // Playback context
-    TSDemux::TsLayerContext *mTsContext;
+    QIYI::TsLayerContext *mTsContext;
     uint16_t mVideoPid;
     uint16_t mAudioPid;
  

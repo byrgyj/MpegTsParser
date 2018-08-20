@@ -28,7 +28,7 @@
 // PSI section size (EN 300 468)
 #define TABLE_BUFFER_SIZE       4096
 
-namespace TSDemux
+namespace QIYI
 {
   class TSTable
   {

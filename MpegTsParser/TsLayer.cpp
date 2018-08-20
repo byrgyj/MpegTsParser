@@ -1,7 +1,6 @@
 #include "StdAfx.h"
 #include "TsLayer.h"
 
-extern int g_parseonly;
 #define LOGTAG ""
 TsLayer::TsLayer(FILE* file, uint16_t channel, int fileIndex) : m_channel(channel), mFileIndex(fileIndex) {
     m_ifile = file;
@@ -17,7 +16,7 @@ TsLayer::TsLayer(FILE* file, uint16_t channel, int fileIndex) : m_channel(channe
         mAudioPid = 0xffff;
 
         mPinTime = mCurTime = mEndTime = 0;
-        mTsContext = new TSDemux::TsLayerContext(this, 0, m_channel, fileIndex);
+        mTsContext = new QIYI::TsLayerContext(this, 0, m_channel, fileIndex);
     }
     else
     {
@@ -91,11 +90,12 @@ int TsLayer::doDemux(){
 
     while (true){
         ret = mTsContext->tsSync();
-        if (ret != TSDemux::AVCONTEXT_CONTINUE){
+        if (ret != QIYI::AVCONTEXT_CONTINUE){
+            mTsContext->processLastFrame();
             break;
         }
 
-        TSDemux::TsPacket *pkt = mTsContext->parserTsPacket();
+        QIYI::TsPacket *pkt = mTsContext->parserTsPacket();
 
         if (pkt == NULL) {
             mTsContext->Shift();
@@ -106,6 +106,9 @@ int TsLayer::doDemux(){
         }
 
         indexCount++;
+        if (indexCount >= 8176) {
+            printf("");
+        }
 //         ret = mTsContext->ProcessTSPacket();
 //         
 //         if (mTsContext->HasPIDStreamData()){
@@ -134,8 +137,8 @@ int TsLayer::doDemux(){
     return ret;
 }
 
-bool TsLayer::getStreamData(TSDemux::STREAM_PKT* pkt) {
-    TSDemux::ElementaryStream* es = mTsContext->GetPIDStream();
+bool TsLayer::getStreamData(QIYI::STREAM_PKT* pkt) {
+    QIYI::ElementaryStream* es = mTsContext->GetPIDStream();
     if (!es) {
         return false;
     }
@@ -174,7 +177,7 @@ void TsLayer::resetPosmap(){
 }
 
 void TsLayer::registerPMT(){
-    const std::vector<TSDemux::ElementaryStream*> es_streams = mTsContext->GetStreams();
+    const std::vector<QIYI::ElementaryStream*> es_streams = mTsContext->GetStreams();
     if (!es_streams.empty()) {
         mVideoPid = es_streams[0]->pid;
 
@@ -182,7 +185,7 @@ void TsLayer::registerPMT(){
             mAudioPid = es_streams[1]->pid;
         }
 
-        for (std::vector<TSDemux::ElementaryStream*>::const_iterator it = es_streams.begin(); it != es_streams.end(); ++it) {
+        for (std::vector<QIYI::ElementaryStream*>::const_iterator it = es_streams.begin(); it != es_streams.end(); ++it) {
             uint16_t channel = mTsContext->GetChannel((*it)->pid);
             const char* codec_name = (*it)->GetStreamCodecName();
             mTsContext->StartStreaming((*it)->pid);
@@ -199,7 +202,7 @@ static inline int stream_identifier(int composition_id, int ancillary_id){
 }
 
 void TsLayer::showStreamInfo(uint16_t pid){
-    TSDemux::ElementaryStream* es = mTsContext->GetStream(pid);
+    QIYI::ElementaryStream* es = mTsContext->GetStream(pid);
     if (!es) {
         return;
     }
@@ -223,7 +226,7 @@ void TsLayer::showStreamInfo(uint16_t pid){
     printf("\n");
 }
 
-void TsLayer::writeStreamData(TSDemux::STREAM_PKT* pkt)
+void TsLayer::writeStreamData(QIYI::STREAM_PKT* pkt)
 {
 //     if (!pkt)
 //         return;

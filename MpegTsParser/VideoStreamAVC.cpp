@@ -4,7 +4,7 @@
 
 #include <cstring>      // for memset memcpy
 
-using namespace TSDemux;
+using namespace QIYI;
 
 static const int h264_lev2cpbsize[][2] =
 {

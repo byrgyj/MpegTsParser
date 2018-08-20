@@ -20,7 +20,7 @@
 
 #include "bitstream.h"
 
-using namespace TSDemux;
+using namespace QIYI;
 
 void CBitstream::skipBits(unsigned int num)
 {

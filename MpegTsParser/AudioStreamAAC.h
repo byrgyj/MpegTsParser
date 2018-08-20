@@ -5,7 +5,7 @@
 #include "elementaryStream.h"
 #include "bitstream.h"
 
-namespace TSDemux
+namespace QIYI
 {
   class AudioStreamAAC : public ElementaryStream
   {

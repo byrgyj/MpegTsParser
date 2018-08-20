@@ -30,7 +30,7 @@
 typedef CRITICAL_SECTION pthread_mutex_t;
 #else
 #include <pthread.h>
-namespace TSDemux
+namespace QIYI
 {
 namespace PLATFORM
 {
@@ -50,7 +50,7 @@ namespace PLATFORM
 }
 #endif /* _MSC_VER */
 
-namespace TSDemux
+namespace QIYI
 {
 namespace PLATFORM
 {

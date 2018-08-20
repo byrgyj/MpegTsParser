@@ -4,7 +4,7 @@
 #include "Tool.h"
 #include "CommandLine.h"
 
-namespace GYJ{
+namespace QIYI{
 
 ParseredDataContainer::ParseredDataContainer(printParam pp) : mLastVideoDts(0), mLastAudioDts(0), mLastVideoPts(0), mPrintParam(pp), mVideoPid(256), mAudioPid(257),
     mLastPCR(0), mCurrentTsSegmentIndex(0){
@@ -13,7 +13,7 @@ ParseredDataContainer::ParseredDataContainer(printParam pp) : mLastVideoDts(0), 
 ParseredDataContainer::~ParseredDataContainer(){
 }
 
-void ParseredDataContainer::addData(std::list<TSDemux::STREAM_PKT*> *lstData, int64_t index) {
+void ParseredDataContainer::addData(std::list<QIYI::STREAM_PKT*> *lstData, int64_t index) {
     mParserdData.insert(std::make_pair(index, lstData));
 }
 void ParseredDataContainer::addData(int64_t startTime, const tsParam *tsInfo) {
@@ -72,7 +72,7 @@ void ParseredDataContainer::printTimeStamp(const tsParam *tsSegment){
         return;
     }
 
-    std::list<TSDemux::STREAM_PKT*> *lst = tsSegment->packets;
+    std::list<QIYI::STREAM_PKT*> *lst = tsSegment->packets;
  
     mVideoData.clear();
     mAudioData.clear();
@@ -86,9 +86,9 @@ void ParseredDataContainer::printTimeStamp(const tsParam *tsSegment){
     int currentIndex = 0;
     int packetCount = mVideoData.size();
 
-    TSDemux::DBG(DEMUX_DBG_INFO, "###:) \n");
-    TSDemux::DBG(DEMUX_DBG_INFO, "[%d] file name:%s \n", mCurrentTsSegmentIndex++, tsSegment->fileName.c_str());
-    TSDemux::DBG(DEMUX_DBG_INFO, "###:) \n");
+    QIYI::DBG(DEMUX_DBG_INFO, "###:) \n");
+    QIYI::DBG(DEMUX_DBG_INFO, "[%d] file name:%s \n", mCurrentTsSegmentIndex++, tsSegment->fileName.c_str());
+    QIYI::DBG(DEMUX_DBG_INFO, "###:) \n");
 
     processVideo();
     processAudio();
@@ -102,7 +102,7 @@ void ParseredDataContainer::processVideo() {
 
     mapIndex it = mVideoData.begin();
     while (it != mVideoData.end()) {
-        TSDemux::STREAM_PKT *packet = it->second;
+        QIYI::STREAM_PKT *packet = it->second;
         if (packet == NULL) {
             continue;
         }
@@ -113,21 +113,21 @@ void ParseredDataContainer::processVideo() {
         if (mLastVideoPts != 0) {
             int64_t distance = it->first - mLastVideoPts;
             if (mVideoFrameDistanceSets.find(distance) == mVideoFrameDistanceSets.end()) {
-                TSDemux::DBG(DEMUX_DBG_INFO, "video pts is discontinuity, distance:%lld, cur_pts=%lld, cur_dts=%lld, pre_pts:%lld \n", distance, pts, dts, mLastVideoPts);
+                QIYI::DBG(DEMUX_DBG_INFO, "video pts is discontinuity, distance:%lld, cur_pts=%lld, cur_dts=%lld, pre_pts:%lld \n", distance, pts, dts, mLastVideoPts);
                 videoStreamValidate = false;
             }
         }
 
         int64_t distance = it->first - dts;
         if (distance >= 90000) {
-            TSDemux::DBG(DEMUX_DBG_INFO, "video pts:%lld - dts:%lld > 90000 \n", it->first, dts);
+            QIYI::DBG(DEMUX_DBG_INFO, "video pts:%lld - dts:%lld > 90000 \n", it->first, dts);
             if (CommandLine::getInstance()->getCommandLineParam().checkPacketBufferOut > 0){
                 printf("[V] pts(%lld)-dts(%lld)=%lld, out of range (90K)!!!! \n", it->first, dts, distance);
             }
         }
 
         if (checkCurrentPrint(currentIndex, packetCount)) {
-            TSDemux::DBG(DEMUX_DBG_INFO, "[V] pts=%lld, dts=%lld\n", pts, dts);
+            QIYI::DBG(DEMUX_DBG_INFO, "[V] pts=%lld, dts=%lld\n", pts, dts);
             //printf("[video-%lld] pts=%lld, dts=%lld \n", tsSegment->tsStartTime, pts, dts);
         }
 
@@ -151,7 +151,7 @@ void ParseredDataContainer::processAudio() {
     int packetCount = mAudioData.size();
     mapIndex it = mAudioData.begin();
     while (it != mAudioData.end()) {
-        TSDemux::STREAM_PKT *packet = it->second;
+        QIYI::STREAM_PKT *packet = it->second;
         if (packet == NULL) {
             continue;
         }
@@ -159,17 +159,18 @@ void ParseredDataContainer::processAudio() {
         int64_t distance = packet->dts - mLastAudioDts - mLastAudioDuration;
         //uint64_t dis = fabs((double)distance - mLastAudioDuration);
         if (mLastAudioDts != 0 && distance > 1){
-            TSDemux::DBG(DEMUX_DBG_INFO, "audio pts is discontinuity, distance:%lld, cur pts:%lld, pre pts:%lld \n", distance,  it->first, mLastAudioDts);
+            QIYI::DBG(DEMUX_DBG_INFO, "audio pts is discontinuity, distance:%lld, cur pts:%lld, pre pts:%lld \n", distance,  it->first, mLastAudioDts);
             audioStreamValidate = false;
         }
 
         if (checkCurrentPrint(currentIndex, packetCount)) {
-            TSDemux::DBG(DEMUX_DBG_INFO, "[A] pts=%lld, dts=%lld, next pts:%lld \n", it->first, packet->dts, packet->dts + packet->duration);
+            QIYI::DBG(DEMUX_DBG_INFO, "[A] pts=%lld, dts=%lld, next pts:%lld \n", it->first, packet->dts, packet->dts + packet->duration);
         }
         mLastAudioDts = it->first;
         mLastAudioDuration = packet->duration;
         currentIndex++;
         it++;
+
         delete packet;
     }
 
@@ -185,18 +186,18 @@ void ParseredDataContainer::processPCR() {
     int totalPacket = mPcrData.size();
     mapIndex it = mPcrData.begin();
     while (it != mPcrData.end()){
-        TSDemux::STREAM_PKT *packet = it->second;
+        QIYI::STREAM_PKT *packet = it->second;
         if (packet == NULL) {
             continue;
         }
 
         if (checkPrintPcr(curIndex++, totalPacket) && packet->pcr.pcr != 0) {
             //double time = pcrToTime(packet->pcr.pcr_base);
-            TSDemux::DBG(DEMUX_DBG_INFO, "[V-PCR]pcr:%lld, time:%s \n", packet->pcr.pcr, pcrToTime(packet->pcr.pcr_base));
+            QIYI::DBG(DEMUX_DBG_INFO, "[V-PCR]pcr:%lld, time:%s \n", packet->pcr.pcr, pcrToTime(packet->pcr.pcr_base));
         }
 
         if (mLastPCR != 0 && packet->pcr.pcr != 0 && isPcrValidate(mLastPCR, packet->pcr.pcr)) {
-            TSDemux::DBG(DEMUX_DBG_INFO, "pcr is discontinuity, current dts:%lld,  current pcr:%lld, pre pcr:%lld \n", it->first, packet->pcr.pcr, mLastPCR);
+            QIYI::DBG(DEMUX_DBG_INFO, "pcr is discontinuity, current dts:%lld,  current pcr:%lld, pre pcr:%lld \n", it->first, packet->pcr.pcr, mLastPCR);
             printf("pcr is discontinuity, current dts:%lld,  current pcr:%lld, pre pcr:%lld \n", it->first, packet->pcr.pcr, mLastPCR);
         }
         mLastPCR = packet->pcr.pcr;
@@ -224,16 +225,16 @@ const char *ParseredDataContainer::pcrToTime(int64_t pcr) {
     return mTimeBuffer;
 }
 
-void ParseredDataContainer::dispatchPackets(const std::list<TSDemux::STREAM_PKT*> *lst) {
+void ParseredDataContainer::dispatchPackets(const std::list<QIYI::STREAM_PKT*> *lst) {
     if (lst == NULL) {
         return;
     }
 
-    std::list<TSDemux::STREAM_PKT*>::const_iterator it = lst->begin();
+    std::list<QIYI::STREAM_PKT*>::const_iterator it = lst->begin();
     int64_t preVideoDts = -1;
     int64_t preAudioDts = -1;
     while(it != lst->end()) {
-        TSDemux::STREAM_PKT *pkt = *it;
+        QIYI::STREAM_PKT *pkt = *it;
         if (isEnableVideoPrint() && pkt->pid == mVideoPid){
             mVideoData.insert(std::make_pair(pkt->pts, pkt));
             mPcrData.insert(std::make_pair(pkt->dts, pkt));
@@ -256,11 +257,11 @@ void ParseredDataContainer::dispatchPackets(const std::list<TSDemux::STREAM_PKT*
 void ParseredDataContainer::printFrameDistance(std::set<int64_t> &Distances, std::string tag) {
     if (!Distances.empty()){
 
-        TSDemux::DBG(DEMUX_DBG_INFO, "%s frame duration count:%d ", tag.c_str(), Distances.size());
+        QIYI::DBG(DEMUX_DBG_INFO, "%s frame duration count:%d ", tag.c_str(), Distances.size());
         for(std::set<int64_t>::iterator it = Distances.begin(); it != Distances.end(); it++) {
-            TSDemux::DBG(DEMUX_DBG_INFO, "  duration:%lld ", *it);
+            QIYI::DBG(DEMUX_DBG_INFO, "  duration:%lld ", *it);
         }
-        TSDemux::DBG(DEMUX_DBG_INFO, "\n");
+        QIYI::DBG(DEMUX_DBG_INFO, "\n");
     }
 }
 

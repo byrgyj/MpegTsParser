@@ -1,23 +1,3 @@
-/*
- *      Copyright (C) 2013 Jean-Luc Barriere
- *
- *  This Program is free software; you can redistribute it and/or modify
- *  it under the terms of the GNU General Public License as published by
- *  the Free Software Foundation; either version 2, or (at your option)
- *  any later version.
- *
- *  This Program is distributed in the hope that it will be useful,
- *  but WITHOUT ANY WARRANTY; without even the implied warranty of
- *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
- *  GNU General Public License for more details.
- *
- *  You should have received a copy of the GNU General Public License
- *  along with this program; see the file COPYING.  If not, write to
- *  the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.
- *  http://www.gnu.org/copyleft/gpl.html
- *
- */
-
 #define __STDC_FORMAT_MACROS 1
 #include <stdlib.h>
 #include <assert.h>
@@ -26,25 +6,23 @@
 #include <inttypes.h>
 
 #include "debug.h"
-#include <io.h>
 #include "ParserdDataContainer.h"
 #include "TsLayer.h"
 #include "CommandLine.h"
 #include "Tool.h"
 
-#define LOGTAG  "[DEMUX] "
-
-int g_parseonly = 1;
-bool g_printVideoPts = false;
-bool g_printAudioPts = false;
-
 static void usage(const char* cmd)
 {
   printf("Usage: %s [options] <file> | -\n\n"
         "  Enter '-' instead a file name will process stream from standard input\n\n"
-        "  --debug            enable debug output\n"
-        "  --parseonly        only parse streams\n"
-        "  --channel <id>     process channel <id>. Default 0 for all channels\n"
+        "  --print_video      only print video media info\n"
+        "  --print_audio      only print audio media info\n"
+        "  --print_all        print video and audio media info \n"
+        "  --all_pts          print all pts info \n"
+        "  --partly_pts       print partly pts \n"
+        "  --ts_folder_path   files location \n"
+        "  --print_pcr        print pcr info \n"
+        "  --check_buffer_out  checkout distance between the pts and dts info in one frame \n"
         "  -h, --help         print this help\n"
         "\n", cmd
         );
@@ -58,7 +36,7 @@ void  LogOut(int level, char *log) {
     }
 }
 
-using namespace GYJ;
+using namespace QIYI;
 int main(int argc, char* argv[])
 {
   const char* filename = NULL;
@@ -69,29 +47,18 @@ int main(int argc, char* argv[])
   std::string videoFileLocation;
   std::vector<std::string> localFiles;
 
-  while (++i < argc)
-  {
-    if (strcmp(argv[i], "--debug") == 0){
-    }
-    else if (strcmp(argv[i], "--parseonly") == 0){
-      g_parseonly = 1;
-      fprintf(stderr, "parseonly=Yes, ");
-    }
-    else if (strcmp(argv[i], "--channel") == 0 && ++i < argc)
-    {
+  while (++i < argc) {
+    if (strcmp(argv[i], "--channel") == 0 && ++i < argc){
       channel = atoi(argv[i]);
       fprintf(stderr, "channel=%d, ",channel);
-    }
-    else if (strcmp(argv[i], "--help") == 0 || strcmp(argv[i], "-h") == 0)
-    {
+    } else if (strcmp(argv[i], "--help") == 0 || strcmp(argv[i], "-h") == 0){
       usage(argv[0]);
       return 0;
-    }
-    else if (strcmp(argv[i], "--print_video") == 0) {
+    } else if (strcmp(argv[i], "--print_video") == 0) {
         cmdLine.printMediaType = PRINT_MEDIA_VIDEO;
-    }else if (strcmp(argv[i], "--print_audio") == 0) {
+    } else if (strcmp(argv[i], "--print_audio") == 0) {
         cmdLine.printMediaType = PRINT_MEDIA_AUDIO;
-    }else if (strcmp(argv[i], "--print_all") == 0) {
+    } else if (strcmp(argv[i], "--print_all") == 0) {
         cmdLine.printMediaType = PRINT_MEDIA_ALL;
     } else if (strcmp(argv[i], "--all_pts") == 0) {
         cmdLine.printPtsType = PRINT_ALL_PTS;
@@ -109,15 +76,15 @@ int main(int argc, char* argv[])
     }
   }
 
-  //std::string path = "E:\\Data\\debug\\8_5\\ts\\ts";
-  //cmdLine.filePath = regulateFilePath(path);
+  std::string path = "D:\\data\\8.6\\test";
+  cmdLine.filePath = regulateFilePath(path);
 
   if (localFiles.empty() && cmdLine.filePath.empty()) {
       printf("should specify ts files \n");
       return 0;
   }
 
-  TSDemux::DBGLevel(DEMUX_DBG_INFO);
+  QIYI::DBGLevel(DEMUX_DBG_INFO);
   CommandLine::getInstance()->setCommandLineParam(cmdLine);
 
   if (!cmdLine.filePath.empty()) {
@@ -130,13 +97,13 @@ int main(int argc, char* argv[])
       return 0;
   }
 
-  GYJ::ParseredDataContainer dataContainer(GYJ::printParam(cmdLine.printMediaType, cmdLine.printPtsType));
+  ParseredDataContainer dataContainer(printParam(cmdLine.printMediaType, cmdLine.printPtsType));
   std::string logFile = "TsParserInfo.log";
 
 
   g_logFile = fopen(logFile.c_str(), "w");
   if (g_logFile != NULL) {
-      TSDemux::SetDBGMsgCallback(LogOut);
+      QIYI::SetDBGMsgCallback(LogOut);
   }
 
   if (!localFiles.empty()){
@@ -156,8 +123,8 @@ int main(int argc, char* argv[])
             TsLayer* demux = new TsLayer(file, channel, 0);
             if (demux != NULL) {
                 demux->doDemux();
-                std::list<TSDemux::STREAM_PKT*> *lst = demux->getParseredData();
-                GYJ::tsParam *param = new GYJ::tsParam(*it, demux->getTsStartTimeStamp(), lst);
+                std::list<QIYI::STREAM_PKT*> *lst = demux->getParseredData();
+                tsParam *param = new tsParam(*it, demux->getTsStartTimeStamp(), lst);
                 if (param != NULL) {
                     dataContainer.addData(param->tsStartTime, param);
                 }

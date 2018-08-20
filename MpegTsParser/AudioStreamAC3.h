@@ -4,7 +4,7 @@
 
 #include "elementaryStream.h"
 
-namespace TSDemux
+namespace QIYI
 {
   class AudioStreamAC3 : public ElementaryStream
   {

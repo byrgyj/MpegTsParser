@@ -25,7 +25,7 @@
 
 #include "elementaryStream.h"
 
-namespace TSDemux
+namespace QIYI
 {
   class VideoStreamHEVC : public ElementaryStream
   {

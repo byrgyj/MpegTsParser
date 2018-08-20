@@ -1,7 +1,8 @@
 
 #include <string>
 #include "ParserdDataContainer.h"
-namespace GYJ {
+namespace QIYI {
+
 typedef struct CommandLineParam {
     CommandLineParam() : printMediaType(PRINT_MEDIA_ALL), printPtsType(PRINT_PARTLY_PTS), checkPacketBufferOut(0), printPcr(0) {}
     int printMediaType;

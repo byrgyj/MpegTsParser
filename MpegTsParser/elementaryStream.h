@@ -32,15 +32,10 @@
 #define PTS_TIME_BASE           90000LL
 #define RESCALE_TIME_BASE       1000000LL
 
-namespace TSDemux
+namespace QIYI
 {
-  enum STREAM_TYPE
-  {
+  enum STREAM_TYPE{
     STREAM_TYPE_UNKNOWN = 0,
-    STREAM_TYPE_VIDEO_MPEG1,
-    STREAM_TYPE_VIDEO_MPEG2,
-    STREAM_TYPE_AUDIO_MPEG1,
-    STREAM_TYPE_AUDIO_MPEG2,
     STREAM_TYPE_AUDIO_AAC,
     STREAM_TYPE_AUDIO_AAC_ADTS,
     STREAM_TYPE_AUDIO_AAC_LATM,
@@ -48,7 +43,6 @@ namespace TSDemux
     STREAM_TYPE_VIDEO_HEVC,
     STREAM_TYPE_AUDIO_AC3,
     STREAM_TYPE_AUDIO_EAC3,
-    STREAM_TYPE_DVB_TELETEXT,
     STREAM_TYPE_DVB_SUBTITLE,
     STREAM_TYPE_VIDEO_MPEG4,
     STREAM_TYPE_VIDEO_VC1,
@@ -57,8 +51,7 @@ namespace TSDemux
     STREAM_TYPE_PRIVATE_DATA
   };
 
-  struct STREAM_INFO
-  {
+  struct STREAM_INFO{
     char                  language[4];
     int                   composition_id;
     int                   ancillary_id;
@@ -82,8 +75,7 @@ namespace TSDemux
       uint64_t pcr_ext;
   };
 
-  struct STREAM_PKT
-  {
+  struct STREAM_PKT {
     uint16_t              pid;
     uint16_t              slice_type;
     size_t                size;
@@ -102,13 +94,12 @@ namespace TSDemux
       uint8_t streamId;
   };
 
-
-  enum PACKET_TYPE
-  {
+  enum PACKET_TYPE {
       PACKET_TYPE_UNKNOWN = 0,
       PACKET_TYPE_PSI,
       PACKET_TYPE_PES
   };
+  
   struct TsPacket {
       int pid;
       bool transportError;
@@ -123,8 +114,7 @@ namespace TSDemux
       uint8_t *payload;
   };
 
-  class ElementaryStream
-  {
+  class ElementaryStream{
   public:
     ElementaryStream(uint16_t pes_pid);
     virtual ~ElementaryStream();

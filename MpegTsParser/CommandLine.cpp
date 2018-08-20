@@ -1,7 +1,7 @@
 #include "StdAfx.h"
 #include "CommandLine.h"
 
-namespace GYJ {
+namespace QIYI {
 
 CommandLine *CommandLine::sInstance = NULL;
 

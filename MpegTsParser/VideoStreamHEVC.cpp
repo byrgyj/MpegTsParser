@@ -26,7 +26,7 @@
 
 #include <cstring>      // for memset memcpy
 
-using namespace TSDemux;
+using namespace QIYI;
 
 VideoStreamHEVC::VideoStreamHEVC(uint16_t pes_pid)
  : ElementaryStream(pes_pid)

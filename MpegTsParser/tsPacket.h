@@ -25,7 +25,7 @@
 #include "tsTable.h"
 #include "elementaryStream.h"
 
-namespace TSDemux
+namespace QIYI
 {
   class Packet
   {

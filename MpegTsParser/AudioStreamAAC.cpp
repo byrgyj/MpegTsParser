@@ -21,7 +21,7 @@
 #include "AudioStreamAAC.h"
 #include "bitstream.h"
 
-using namespace TSDemux;
+using namespace QIYI;
 
 static int aac_sample_rates[16] =
 {
