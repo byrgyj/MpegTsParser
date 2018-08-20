@@ -1,5 +1,6 @@
 
 #include <string>
+#include <vector>
 #include "ParserdDataContainer.h"
 namespace QIYI {
 
@@ -22,11 +23,15 @@ public:
 
 
     static CommandLine *getInstance();
+    int parseCommand(int argc, char *argv[]);
 
     void setCommandLineParam(CommandLineParam param);
     const CommandLineParam getCommandLineParam() { return mParam; }
+    const std::vector<std::string> &getLocalFiles() { return mLocalFiles; }
+    void usage(const char* cmd);
 private:
     CommandLineParam mParam;
+    std::vector<std::string> mLocalFiles;
     static CommandLine *sInstance;
 };
 

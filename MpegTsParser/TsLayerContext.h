@@ -63,7 +63,7 @@ namespace QIYI
   class TsLayerContext
   {
   public:
-    TsLayerContext(TSDemuxer* const demux, uint64_t pos, uint16_t channel, int fileIndex);
+    TsLayerContext(TSDemuxer* const demux, uint64_t pos, uint16_t channel);
     ~TsLayerContext();
     void Reset(void);
 
@@ -123,8 +123,6 @@ namespace QIYI
     int mPmtPid;
 
     std::list<const TsPacket*> mMediaDatas;
-    int mFileIndex;
-
     // Raw packet buffer
     uint64_t av_pos;
     size_t mAvDataLen;

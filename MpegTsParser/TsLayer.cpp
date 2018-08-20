@@ -2,8 +2,8 @@
 #include "TsLayer.h"
 
 #define LOGTAG ""
-TsLayer::TsLayer(FILE* file, uint16_t channel, int fileIndex) : m_channel(channel), mFileIndex(fileIndex) {
-    m_ifile = file;
+TsLayer::TsLayer(std::string &filePath, uint16_t channel) : m_channel(channel) {
+    mInputFile = fopen(filePath.c_str(), "rb");
     mBufferSize = AV_BUFFER_SIZE;
     mBuffer = (unsigned char*)malloc(sizeof(*mBuffer) * (mBufferSize + 1));
     if (mBuffer){
@@ -16,10 +16,8 @@ TsLayer::TsLayer(FILE* file, uint16_t channel, int fileIndex) : m_channel(channe
         mAudioPid = 0xffff;
 
         mPinTime = mCurTime = mEndTime = 0;
-        mTsContext = new QIYI::TsLayerContext(this, 0, m_channel, fileIndex);
-    }
-    else
-    {
+        mTsContext = new QIYI::TsLayerContext(this, 0, m_channel);
+    } else {
         //printf(LOGTAG "alloc AV buffer failed\n");
     }
 }
@@ -34,6 +32,11 @@ TsLayer::~TsLayer()
         free(mBuffer);
         mBuffer = NULL;
     }
+
+    if (mInputFile != NULL) {
+        fclose(mInputFile);
+        mInputFile = NULL;
+    }
 }
 
 const unsigned char* TsLayer::ReadAV(uint64_t pos, size_t n)
@@ -47,7 +50,7 @@ const unsigned char* TsLayer::ReadAV(uint64_t pos, size_t n)
     if (pos < m_av_pos || pos > (m_av_pos + sz))
     {
         // seek and reset buffer
-        int ret = fseek(m_ifile, (int64_t)pos, SEEK_SET);
+        int ret = fseek(mInputFile, (int64_t)pos, SEEK_SET);
         if (ret != 0)
             return NULL;
         m_av_pos = (uint64_t)pos;
@@ -71,7 +74,7 @@ const unsigned char* TsLayer::ReadAV(uint64_t pos, size_t n)
 
     while (len > 0)
     {
-        size_t c = fread(mBufferEnd, sizeof(*mBuffer), len, m_ifile);
+        size_t c = fread(mBufferEnd, sizeof(*mBuffer), len, mInputFile);
         if (c > 0)
         {
             mBufferEnd += c;

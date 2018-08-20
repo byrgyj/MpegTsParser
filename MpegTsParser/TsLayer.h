@@ -7,7 +7,7 @@
 class TsLayer : public QIYI::TSDemuxer
 {
 public:
-    TsLayer(FILE* file, uint16_t channel, int fileIndex);
+    TsLayer(std::string &filePath, uint16_t channel);
     ~TsLayer(void);
 
     int doDemux();
@@ -23,8 +23,7 @@ private:
     void writeStreamData(QIYI::STREAM_PKT* pkt);
 
 private:
-    FILE* m_ifile;
-    int mFileIndex;
+    FILE* mInputFile;
     uint16_t m_channel;
 
     // AV raw buffer

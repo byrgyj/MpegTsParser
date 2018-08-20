@@ -12,7 +12,7 @@
 #define FREE_PTR(ptr) if (ptr != NULL) { delete ptr ;}
 using namespace QIYI;
 
-TsLayerContext::TsLayerContext(TSDemuxer* const demux, uint64_t pos, uint16_t channel, int fileIndex)
+TsLayerContext::TsLayerContext(TSDemuxer* const demux, uint64_t pos, uint16_t channel)
   : av_pos(pos)
   , mAvDataLen(FLUTS_NORMAL_TS_PACKETSIZE)
   , av_pkt_size(0)
@@ -30,7 +30,6 @@ TsLayerContext::TsLayerContext(TSDemuxer* const demux, uint64_t pos, uint16_t ch
   , mAudioPktCount(0)
   , mVideoPid(-1)
   , mAudioPid(-1)
-  , mFileIndex(fileIndex)
   , mTsStartTimeStamp(-1)
   , mPmtPid(0)
   , mVideoStream(NULL),
@@ -144,11 +143,6 @@ void TsLayerContext::ResetPackets()
     it->second.Reset();
   }
 }
-
-////////////////////////////////////////////////////////////////////////////////
-/////
-/////  MPEG-TS parser for the context
-/////
 
 uint64_t TsLayerContext::decode_pts(const unsigned char* p)
 {
