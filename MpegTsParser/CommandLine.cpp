@@ -56,6 +56,7 @@ int CommandLine::parseCommand(int argc, char *argv[]) {
             if (access(file.c_str(), 0) == 0){
                 mLocalFiles.push_back(file);
             }
+            // test
         }
     }
 
