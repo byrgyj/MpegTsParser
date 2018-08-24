@@ -1,7 +1,6 @@
 #include "StdAfx.h"
 #include "CommandLine.h"
 #include "Tool.h"
-#include <io.h>
 
 namespace QIYI {
 
@@ -59,6 +58,7 @@ int CommandLine::parseCommand(int argc, char *argv[]) {
             // test
         }
     }
+
 
     if (!mParam.filePath.empty()) {
         std::string destLocaltion = mParam.filePath + "*.*";
