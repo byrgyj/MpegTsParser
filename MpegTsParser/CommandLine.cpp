@@ -1,6 +1,7 @@
 #include "StdAfx.h"
 #include "CommandLine.h"
 #include "Tool.h"
+#include <io.h>
 
 namespace QIYI {
 

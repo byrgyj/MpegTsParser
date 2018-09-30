@@ -47,7 +47,9 @@ private:
     void processAudio();
     void processPCR();
     bool isPcrValidate(int64_t prePcr, int64_t curPcr);
-    const char *pcrToTime(int64_t pcr);
+    std::string pcrToTime(int64_t pcr);
+    std::string ptsToTime(int64_t pts);
+    std::string toStringTime(double seconds);
     int roundDouble(double number);
 private:
 

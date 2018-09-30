@@ -106,10 +106,7 @@ typedef enum {
 } EAC3FrameType;
 
 AudioStreamAC3::AudioStreamAC3(uint16_t pid)
- : ElementaryStream(pid)
-{
-  m_PTS                       = 0;
-  m_DTS                       = 0;
+ : ElementaryStream(pid) {
   m_FrameSize                 = 0;
   m_SampleRate                = 0;
   m_Channels                  = 0;
@@ -117,8 +114,7 @@ AudioStreamAC3::AudioStreamAC3(uint16_t pid)
   es_alloc_init               = 1920*2;
 }
 
-AudioStreamAC3::~AudioStreamAC3()
-{
+AudioStreamAC3::~AudioStreamAC3(){
 }
 
 int64_t AudioStreamAC3::parse(const TsPacket *pkt){
@@ -126,8 +122,7 @@ int64_t AudioStreamAC3::parse(const TsPacket *pkt){
   int64_t frameDuration = 0;
   int p = es_parsed;
   int l;
-  while ((l = es_len - p) > 8)
-  {
+  while ((l = es_len - p) > 8){
       if (FindHeaders(es_buf + p, l) < 0){
           frameCount++;
           p += m_FrameSize;
@@ -139,8 +134,7 @@ int64_t AudioStreamAC3::parse(const TsPacket *pkt){
 
   frameDuration = frameCount * 90000 * 1536 / m_SampleRate;
 
-  if (es_found_frame)
-  {
+  if (es_found_frame){
     bool streamChange = SetAudioInformation(m_Channels, m_SampleRate, m_BitRate, 0, 0);
     es_found_frame = false;
   }
@@ -153,18 +147,13 @@ int64_t AudioStreamAC3::parse(const TsPacket *pkt){
 
 int AudioStreamAC3::FindHeaders(uint8_t *buf, int buf_size)
 {
-//   if (es_found_frame)
-//     return -1;
-
-//   if (buf_size < 9)
-//     return -1;
+  if (buf_size < 9){
+    return -1;
+  }
 
   uint8_t *buf_ptr = buf;
-
-  if ((buf_ptr[0] == 0x0b && buf_ptr[1] == 0x77))
-  {
+  if ((buf_ptr[0] == 0x0b && buf_ptr[1] == 0x77)) {
     CBitstream bs(buf_ptr + 2, AC3_HEADER_SIZE * 8);
-
     // read ahead to bsid to distinguish between AC-3 and E-AC-3
     int bsid = bs.showBits(29) & 0x1F;
     if (bsid > 16){
@@ -183,12 +172,10 @@ int AudioStreamAC3::FindHeaders(uint8_t *buf, int buf_size)
       if (fscod == 3 || frmsizecod > 37)
         return 0;
 
-      if (acmod == AC3_CHMODE_STEREO)
-      {
+      if (acmod == AC3_CHMODE_STEREO){
         bs.skipBits(2); // skip dsurmod
       }
-      else
-      {
+      else {
         if ((acmod & 1) && acmod != AC3_CHMODE_MONO)
           bs.skipBits(2);
         if (acmod & 4)
@@ -201,9 +188,7 @@ int AudioStreamAC3::FindHeaders(uint8_t *buf, int buf_size)
       m_BitRate     = (AC3BitrateTable[frmsizecod>>1] * 1000) >> srShift;
       m_Channels    = AC3ChannelsTable[acmod] + lfeon;
       m_FrameSize   = AC3FrameSizeTable[frmsizecod][fscod] * 2;
-    }
-    else
-    {
+    } else {
       // Enhanced AC-3
       int frametype = bs.readBits(2);
       if (frametype == EAC3_FRAME_TYPE_RESERVED)
@@ -217,15 +202,12 @@ int AudioStreamAC3::FindHeaders(uint8_t *buf, int buf_size)
 
       int numBlocks = 6;
       int sr_code = bs.readBits(2);
-      if (sr_code == 3)
-      {
+      if (sr_code == 3) {
         int sr_code2 = bs.readBits(2);
         if (sr_code2 == 3)
           return 0;
         m_SampleRate = AC3SampleRateTable[sr_code2] / 2;
-      }
-      else
-      {
+      } else {
         numBlocks = EAC3Blocks[bs.readBits(2)];
         m_SampleRate = AC3SampleRateTable[sr_code];
       }
@@ -237,8 +219,7 @@ int AudioStreamAC3::FindHeaders(uint8_t *buf, int buf_size)
       m_Channels = AC3ChannelsTable[channelMode] + lfeon;
     }
     es_found_frame = true;
-    m_DTS = c_pts;
-    m_PTS = c_pts;
+
     c_pts += 90000 * 1536 / m_SampleRate;
     return -1;
   }

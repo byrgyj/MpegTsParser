@@ -107,8 +107,8 @@ void ParseredDataContainer::processVideo() {
             continue;
         }
 
-        int64_t pts = it->first;
-        int64_t dts = packet->dts;
+        int64_t dts = it->first;
+        int64_t pts = packet->pts;
 
         if (mLastVideoPts != 0) {
             int64_t distance = it->first - mLastVideoPts;
@@ -127,8 +127,8 @@ void ParseredDataContainer::processVideo() {
         }
 
         if (checkCurrentPrint(currentIndex, packetCount)) {
-            QIYI::DBG(DEMUX_DBG_INFO, "[V] pts=%lld, dts=%lld\n", pts, dts);
-            //printf("[video-%lld] pts=%lld, dts=%lld \n", tsSegment->tsStartTime, pts, dts);
+            //QIYI::DBG(DEMUX_DBG_INFO, "[V] pts=%s, dts=%s\n", ptsToTime(pts), ptsToTime(dts));
+            QIYI::DBG(DEMUX_DBG_INFO, "[V] (dts=%s, %lld), (pts=%s, %lld)\n", ptsToTime(dts).c_str(),  dts, ptsToTime(pts).c_str(), pts);
         }
 
         mLastVideoPts = it->first;
@@ -156,15 +156,18 @@ void ParseredDataContainer::processAudio() {
             continue;
         }
 
+        int64_t pts = packet->pts;
+        int64_t dts = packet->dts;
+
         int64_t distance = packet->dts - mLastAudioDts - mLastAudioDuration;
-        //uint64_t dis = fabs((double)distance - mLastAudioDuration);
         if (mLastAudioDts != 0 && distance > 1){
-            QIYI::DBG(DEMUX_DBG_INFO, "audio pts is discontinuity, distance:%lld, cur pts:%lld, pre pts:%lld \n", distance,  it->first, mLastAudioDts);
+            QIYI::DBG(DEMUX_DBG_INFO, "audio pts is discontinuity, distance:%lld, cur pts:%lld, pre pts:%lld \n", distance,  pts, mLastAudioDts);
             audioStreamValidate = false;
         }
 
         if (checkCurrentPrint(currentIndex, packetCount)) {
-            QIYI::DBG(DEMUX_DBG_INFO, "[A] pts=%lld, dts=%lld, next pts:%lld \n", it->first, packet->dts, packet->dts + packet->duration);
+            //QIYI::DBG(DEMUX_DBG_INFO, "[A] pts=%lld, dts=%lld, next pts:%lld \n", it->first, packet->dts, packet->dts + packet->duration);
+            QIYI::DBG(DEMUX_DBG_INFO, "[A] (dts=%s, %lld), (pts=%s, %lld), next pts:%lld \n", ptsToTime(dts).c_str(), dts, ptsToTime(pts).c_str(), pts, packet->dts + packet->duration);
         }
         mLastAudioDts = it->first;
         mLastAudioDuration = packet->duration;
@@ -193,7 +196,7 @@ void ParseredDataContainer::processPCR() {
 
         if (checkPrintPcr(curIndex++, totalPacket) && packet->pcr.pcr != 0) {
             //double time = pcrToTime(packet->pcr.pcr_base);
-            QIYI::DBG(DEMUX_DBG_INFO, "[V-PCR]pcr:%lld, time:%s \n", packet->pcr.pcr, pcrToTime(packet->pcr.pcr_base));
+            QIYI::DBG(DEMUX_DBG_INFO, "[V-PCR]pcr:%lld, time:%s \n", packet->pcr.pcr, pcrToTime(packet->pcr.pcr_base).c_str());
         }
 
         if (mLastPCR != 0 && packet->pcr.pcr != 0 && isPcrValidate(mLastPCR, packet->pcr.pcr)) {
@@ -210,19 +213,35 @@ bool ParseredDataContainer::isPcrValidate(int64_t prePcr, int64_t curPcr) {
     return (curPcr - prePcr > 1080000 * 2.5); // 0.1s
 }
 
-const char *ParseredDataContainer::pcrToTime(int64_t pcr) {
-    double seconds =  pcr * 300 / (double)27000000;
+std::string ParseredDataContainer::pcrToTime(int64_t pcr) {
+   double seconds =  pcr * 300 / (double)27000000;
+   return toStringTime(seconds);
+}
 
-    int hours = (int)seconds / 3600;
-    int mins = (int)(seconds - hours * 3600) / 60;
-    int secs = (int)seconds - hours * 3600 - mins * 60;
+std::string ParseredDataContainer::ptsToTime(int64_t pts) {
+    if (pts < 0) {
+        return "";
+    }
 
-    int millSecs = roundDouble((seconds - (int)seconds) * 1000);
+    double seconds =  pts / (double)90000;
+    return toStringTime(seconds);
+}
 
-    memset(mTimeBuffer, sizeof(mTimeBuffer), 0);
-    sprintf(mTimeBuffer, "%02d:%02d:%02d.%03d", hours, mins, secs, millSecs);
+std::string ParseredDataContainer::toStringTime(double seconds) {
+    if (seconds < 0) {
+        return "";
+    } else {
+        int hours = (int)seconds / 3600;
+        int mins = (int)(seconds - hours * 3600) / 60;
+        int secs = (int)seconds - hours * 3600 - mins * 60;
 
-    return mTimeBuffer;
+        int millSecs = roundDouble((seconds - (int)seconds) * 1000);
+
+        char szBuffer[128] = { 0 };
+        sprintf(szBuffer, "%02d:%02d:%02d.%03d", hours, mins, secs, millSecs);
+
+        return std::string(szBuffer);
+    }
 }
 
 void ParseredDataContainer::dispatchPackets(const std::list<QIYI::STREAM_PKT*> *lst) {
@@ -236,7 +255,8 @@ void ParseredDataContainer::dispatchPackets(const std::list<QIYI::STREAM_PKT*> *
     while(it != lst->end()) {
         QIYI::STREAM_PKT *pkt = *it;
         if (isEnableVideoPrint() && pkt->pid == mVideoPid){
-            mVideoData.insert(std::make_pair(pkt->pts, pkt));
+            //mVideoData.insert(std::make_pair(pkt->pts, pkt));
+            mVideoData.insert(std::make_pair(pkt->dts, pkt));
             mPcrData.insert(std::make_pair(pkt->dts, pkt));
             if (preVideoDts != -1) {
                 int64_t vDistance = pkt->dts - preVideoDts;

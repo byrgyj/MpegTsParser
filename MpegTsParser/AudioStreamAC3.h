@@ -14,9 +14,6 @@ namespace QIYI
     int         m_BitRate;
     int         m_FrameSize;
 
-    int64_t     m_PTS;                /* pts of the current frame */
-    int64_t     m_DTS;                /* dts of the current frame */
-
     int FindHeaders(uint8_t *buf, int buf_size);
 
   public:
