@@ -32,7 +32,7 @@ int CommandLine::parseCommand(int argc, char *argv[]) {
     while (++i < argc) {
         if (strcmp(argv[i], "--channel") == 0 && ++i < argc){
         } else if (strcmp(argv[i], "--help") == 0 || strcmp(argv[i], "-h") == 0){
-            //usage(argv[0]);
+            usage(argv[0]);
             return 0;
         } else if (strcmp(argv[i], "--print_video") == 0) {
             mParam.printMediaType = PRINT_MEDIA_VIDEO;
@@ -70,8 +70,7 @@ int CommandLine::parseCommand(int argc, char *argv[]) {
 }
 
 void CommandLine::usage(const char* cmd){
-    printf("Usage: %s [options] <file> | -\n\n"
-        "  Enter '-' instead a file name will process stream from standard input\n\n"
+    printf("Usage: %s [options] <file> \n\n"
         "  --print_video      only print video media info\n"
         "  --print_audio      only print audio media info\n"
         "  --print_all        print video and audio media info \n"
